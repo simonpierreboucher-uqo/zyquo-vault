@@ -32,7 +32,7 @@ public final class VaultRepository {
     public static let recordSchemaVersion: UInt32 = 1
 
     public let directory: URL
-    public let header: VaultHeader
+    public private(set) var header: VaultHeader
     /// Non-fatal permission findings from `open` (§6.5: warn, fail only on writes).
     public private(set) var permissionWarnings: [String]
 
@@ -67,16 +67,19 @@ public final class VaultRepository {
     }
 
     /// Creates a vault (header + empty manifest + directory skeleton), verifying
-    /// creation by a full reopen, and returns the open repository.
+    /// creation by a full reopen, and returns the open repository. When
+    /// `recoveryKey` is provided, a second VMK wrap under it lands in the header.
     public static func create(
         at directory: URL,
         password: SecureBytes,
+        recoveryKey: RecoveryKey? = nil,
         parameters: Argon2id.Parameters = .baseline,
         random: SecureRandomSource = SystemSecureRandom(),
         now: @escaping @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) }
     ) throws -> VaultRepository {
         let (header, vmk) = try VaultStore.createVaultKeepingKeys(
-            at: directory, password: password, parameters: parameters, random: random, now: now
+            at: directory, password: password, recoveryKey: recoveryKey,
+            parameters: parameters, random: random, now: now
         )
 
         do {
@@ -111,6 +114,27 @@ public final class VaultRepository {
         password: SecureBytes,
         now: @escaping @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) }
     ) throws -> VaultRepository {
+        try open(at: directory, now: now) {
+            try VaultStore.openVault(at: directory, password: password)
+        }
+    }
+
+    /// Opens a vault with the recovery key instead of the password (§7.1).
+    public static func open(
+        at directory: URL,
+        recoveryKey: RecoveryKey,
+        now: @escaping @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) }
+    ) throws -> VaultRepository {
+        try open(at: directory, now: now) {
+            try VaultStore.openVaultWithRecoveryKey(at: directory, recoveryKey: recoveryKey)
+        }
+    }
+
+    private static func open(
+        at directory: URL,
+        now: @escaping @Sendable () -> UInt64,
+        unwrap: () throws -> (header: VaultHeader, vmk: SecureBytes)
+    ) throws -> VaultRepository {
         let warnings = validatePermissions(in: directory)
         AtomicFileWriter.sweepStaleTempFiles(in: directory)
         AtomicFileWriter.sweepStaleTempFiles(in: directory.appendingPathComponent(recordsDirectoryName))
@@ -119,7 +143,7 @@ public final class VaultRepository {
         try lock.acquire()
 
         do {
-            let (header, vmk) = try VaultStore.openVault(at: directory, password: password)
+            let (header, vmk) = try unwrap()
             let manifestKey = KeyDerivation.subkey(vmk: vmk, vaultID: header.vaultID, context: .manifestProtection)
             let manifestURL = directory.appendingPathComponent(VaultManifest.fileName)
             guard FileManager.default.fileExists(atPath: manifestURL.path) else {
@@ -253,6 +277,76 @@ public final class VaultRepository {
 
         try? FileManager.default.removeItem(at: recordURL(id))
         TransactionJournal.complete(tx, in: directory)
+    }
+
+    // MARK: Header maintenance (password change, recovery key)
+
+    /// Changes the master password: fresh salt → fresh PKEK → re-wrap the SAME
+    /// VMK (records untouched), reseal the header auth, write atomically, then
+    /// verify the header actually reopens with the new password (§5.4).
+    /// The caller must have verified the current password (UI re-prompts).
+    public func changePassword(
+        to newPassword: SecureBytes,
+        parameters: Argon2id.Parameters? = nil,
+        random: SecureRandomSource = SystemSecureRandom()
+    ) throws {
+        let params = parameters ?? header.wrappedVMK.kdfParameters
+        var next = header
+        next.wrappedVMK = try KeyHierarchy.wrap(
+            vmk: vmk, password: newPassword,
+            salt: try random.bytes(count: Argon2id.Floor.saltLength),
+            parameters: params,
+            vaultID: header.vaultID, formatVersion: header.formatVersion,
+            random: random
+        )
+        try commitHeader(next)
+
+        // Not done until it provably reopens with the new password.
+        let verification = try VaultStore.openVault(at: directory, password: newPassword)
+        verification.vmk.wipe()
+    }
+
+    /// Installs a specific recovery key (e.g. the one confirmed during the
+    /// creation ceremony), replacing any previous wrap, then verifies it opens.
+    public func installRecoveryKey(
+        _ key: RecoveryKey,
+        random: SecureRandomSource = SystemSecureRandom()
+    ) throws {
+        var next = header
+        next.recoveryWrap = try KeyHierarchy.wrapWithRecoveryKey(
+            vmk: vmk, recoveryKey: key,
+            vaultID: header.vaultID, formatVersion: header.formatVersion,
+            random: random
+        )
+        try commitHeader(next)
+        let verification = try VaultStore.openVaultWithRecoveryKey(at: directory, recoveryKey: key)
+        verification.vmk.wipe()
+    }
+
+    /// Generates and installs a fresh recovery key (rotation), invalidating any
+    /// previous one. The returned key is shown to the user exactly once.
+    public func rotateRecoveryKey(random: SecureRandomSource = SystemSecureRandom()) throws -> RecoveryKey {
+        let key = try RecoveryKey.generate(random: random)
+        try installRecoveryKey(key, random: random)
+        return key
+    }
+
+    /// Removes the recovery wrap (user opted out).
+    public func removeRecoveryKey() throws {
+        var next = header
+        next.recoveryWrap = nil
+        try commitHeader(next)
+    }
+
+    private func commitHeader(_ next: VaultHeader) throws {
+        var stamped = next
+        stamped.updatedAt = now()
+        stamped.headerAuthTag = VaultStore.headerAuthTag(for: stamped, vmk: vmk)
+        try AtomicFileWriter.write(
+            try stamped.encoded(),
+            to: directory.appendingPathComponent(VaultStore.headerFileName)
+        )
+        header = stamped
     }
 
     // MARK: Integrity

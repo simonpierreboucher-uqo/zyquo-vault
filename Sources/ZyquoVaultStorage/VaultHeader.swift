@@ -47,22 +47,32 @@ public struct VaultHeader: Equatable, Sendable {
     /// DoS guard: no legitimate v1 header is larger than this.
     public static let maximumEncodedLength = 4096
 
+    /// Feature flag bit 0x1: a recovery-key wrap section is present. All other
+    /// bits are unknown-mandatory and rejected.
+    public static let flagHasRecoveryWrap: UInt32 = 0x1
+
     public var formatVersion: UInt32
     public var minReaderVersion: UInt32
     public var vaultID: UUID
     public var createdAt: UInt64
     public var updatedAt: UInt64
     public var wrappedVMK: KeyHierarchy.WrappedVMK
-    public var featureFlags: UInt32
+    /// Optional second wrap of the VMK under the user-held recovery key (§7.1).
+    public var recoveryWrap: KeyHierarchy.RecoveryWrap?
     /// HMAC-SHA256 over the serialized header body; empty until sealed.
     public var headerAuthTag: Data
+
+    /// Derived, never stored independently: flags reflect the actual sections.
+    public var featureFlags: UInt32 {
+        recoveryWrap != nil ? Self.flagHasRecoveryWrap : 0
+    }
 
     public init(
         vaultID: UUID,
         createdAt: UInt64,
         updatedAt: UInt64,
         wrappedVMK: KeyHierarchy.WrappedVMK,
-        featureFlags: UInt32 = 0,
+        recoveryWrap: KeyHierarchy.RecoveryWrap? = nil,
         formatVersion: UInt32 = VaultHeader.currentFormatVersion,
         minReaderVersion: UInt32 = VaultHeader.currentMinReaderVersion,
         headerAuthTag: Data = Data()
@@ -73,7 +83,7 @@ public struct VaultHeader: Equatable, Sendable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.wrappedVMK = wrappedVMK
-        self.featureFlags = featureFlags
+        self.recoveryWrap = recoveryWrap
         self.headerAuthTag = headerAuthTag
     }
 
@@ -101,6 +111,14 @@ public struct VaultHeader: Equatable, Sendable {
         d.append(wrappedVMK.sealed.ciphertext)
         d.append(wrappedVMK.sealed.tag)
         appendBigEndian(featureFlags, to: &d)
+        if let recovery = recoveryWrap {
+            d.append(UInt8(recovery.salt.count))
+            d.append(contentsOf: recovery.salt)
+            d.append(recovery.sealed.nonce)
+            appendBigEndian(UInt32(recovery.sealed.ciphertext.count), to: &d)
+            d.append(recovery.sealed.ciphertext)
+            d.append(recovery.sealed.tag)
+        }
         return d
     }
 
@@ -160,7 +178,27 @@ public struct VaultHeader: Equatable, Sendable {
         let ciphertext = try reader.bytes(ciphertextLen)
         let tag = try reader.bytes(SealedMessage.tagLength)
         let flags: UInt32 = try reader.integer()
-        guard flags == 0 else { throw fail("unknown mandatory feature flags") }
+        guard flags & ~flagHasRecoveryWrap == 0 else { throw fail("unknown mandatory feature flags") }
+        var recoveryWrap: KeyHierarchy.RecoveryWrap?
+        if flags & flagHasRecoveryWrap != 0 {
+            let recoverySaltLen = Int(try reader.byte())
+            guard recoverySaltLen >= 16, recoverySaltLen <= 64 else {
+                throw fail("recovery salt length out of range")
+            }
+            let recoverySalt = Array(try reader.bytes(recoverySaltLen))
+            let recoveryNonce = try reader.bytes(SealedMessage.nonceLength)
+            let recoveryLen = Int(try reader.integer() as UInt32)
+            guard recoveryLen == 32 else { throw fail("recovery-wrapped VMK length must be 32") }
+            let recoveryCiphertext = try reader.bytes(recoveryLen)
+            let recoveryTag = try reader.bytes(SealedMessage.tagLength)
+            recoveryWrap = KeyHierarchy.RecoveryWrap(
+                salt: recoverySalt,
+                sealed: SealedMessage(
+                    algorithm: .aes256gcm, nonce: recoveryNonce,
+                    ciphertext: recoveryCiphertext, tag: recoveryTag
+                )
+            )
+        }
         let authVersion = try reader.byte()
         guard authVersion == headerAuthVersion else { throw fail("unsupported header-auth version") }
         let authTag = try reader.bytes(headerAuthTagLength)
@@ -173,7 +211,7 @@ public struct VaultHeader: Equatable, Sendable {
         )
         return VaultHeader(
             vaultID: vaultID, createdAt: createdAt, updatedAt: updatedAt,
-            wrappedVMK: wrapped, featureFlags: flags,
+            wrappedVMK: wrapped, recoveryWrap: recoveryWrap,
             formatVersion: formatVersion, minReaderVersion: minReader,
             headerAuthTag: authTag
         )

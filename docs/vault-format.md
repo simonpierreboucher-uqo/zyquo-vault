@@ -42,12 +42,15 @@ Canonical binary; all integers **big-endian**; maximum size 4096 bytes; no JSON.
 | 78+S | 4 | wrapped-VMK ciphertext length C | must be 32 |
 | 82+S | C | wrapped-VMK ciphertext | |
 | 82+S+C | 16 | wrap GCM tag | |
-| 98+S+C | 4 | feature flags | must be 0 in v1; unknown bits ⇒ reject |
-| 102+S+C | 1 | header-auth version | 1 = HMAC-SHA256 |
-| 103+S+C | 32 | header-auth tag | HMAC-SHA256 over the header body: bytes 0 up to (not including) the auth-version byte at offset 102+S+C |
-| 135+S+C | — | end | trailing bytes ⇒ reject |
+| 98+S+C | 4 | feature flags | bit 0x1 = recovery section present; any other bit ⇒ reject |
+| … | 0 or R | recovery section (only if flag 0x1) | see below |
+| … | 1 | header-auth version | 1 = HMAC-SHA256 |
+| … | 32 | header-auth tag | HMAC-SHA256 over the header body: every byte before the auth-version byte |
+| … | — | end | trailing bytes ⇒ reject |
 
-With the default S = 16, C = 32 the header is 183 bytes.
+**Recovery section** (flag 0x1, §7.1): salt length (1 byte, 16…64) ‖ salt ‖ nonce (12) ‖ ciphertext length (4, must be 32) ‖ recovery-wrapped VMK ‖ GCM tag (16). The wrap key is HKDF-SHA256(recovery key, salt, info `zyquo-vault/v1/recovery-kek`); AAD uses object type 6 with revision 0. The recovery key itself is 32 CSPRNG bytes shown once as `ZQRK-` + 13 groups of 4 Crockford-base32 characters.
+
+With the default S = 16, C = 32 and no recovery section the header is 183 bytes; with a recovery section, 264 bytes.
 
 Wrapped-VMK AAD: the canonical 57-byte AAD structure (see `docs/cryptography.md`) with vault UUID, object UUID = vault UUID, object type 1, schema version = format version, revision 0, algorithm 1.
 

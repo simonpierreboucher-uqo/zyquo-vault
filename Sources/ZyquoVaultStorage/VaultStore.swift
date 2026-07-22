@@ -34,6 +34,7 @@ public enum VaultStore {
     static func createVaultKeepingKeys(
         at directory: URL,
         password: SecureBytes,
+        recoveryKey: RecoveryKey? = nil,
         parameters: Argon2id.Parameters = .baseline,
         random: SecureRandomSource = SystemSecureRandom(),
         now: @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) }
@@ -57,6 +58,18 @@ public enum VaultStore {
         var header = VaultHeader(
             vaultID: vaultID, createdAt: timestamp, updatedAt: timestamp, wrappedVMK: wrapped
         )
+        if let recoveryKey {
+            do {
+                header.recoveryWrap = try KeyHierarchy.wrapWithRecoveryKey(
+                    vmk: vmk, recoveryKey: recoveryKey,
+                    vaultID: vaultID, formatVersion: VaultHeader.currentFormatVersion,
+                    random: random
+                )
+            } catch {
+                vmk.wipe()
+                throw error
+            }
+        }
         header.headerAuthTag = headerAuthTag(for: header, vmk: vmk)
         do {
             try AtomicFileWriter.write(try header.encoded(), to: directory.appendingPathComponent(headerFileName))
@@ -99,6 +112,35 @@ public enum VaultStore {
         guard matches else {
             vmk.wipe()
             // Unauthenticated field tampered with (timestamps/flags): fail closed.
+            throw CryptoError.invalidPasswordOrCorruptedVault
+        }
+        return (header, vmk)
+    }
+
+    /// Opens a vault with the user-held recovery key instead of the password
+    /// (§7.1). Same fail-closed semantics as the password path.
+    public static func openVaultWithRecoveryKey(
+        at directory: URL,
+        recoveryKey: RecoveryKey
+    ) throws -> (header: VaultHeader, vmk: SecureBytes) {
+        let url = directory.appendingPathComponent(headerFileName)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw StorageError.vaultNotFound
+        }
+        let header = try VaultHeader.decode(try Data(contentsOf: url))
+        guard let wrap = header.recoveryWrap else {
+            throw StorageError.invalidHeader(reason: "this vault has no recovery key")
+        }
+        let vmk = try KeyHierarchy.unwrapWithRecoveryKey(
+            wrap, recoveryKey: recoveryKey,
+            vaultID: header.vaultID, formatVersion: header.formatVersion
+        )
+        let expected = headerAuthTag(for: header, vmk: vmk)
+        let matches = header.headerAuthTag.withUnsafeBytes { a in
+            expected.withUnsafeBytes { b in constantTimeEquals(a, b) }
+        }
+        guard matches else {
+            vmk.wipe()
             throw CryptoError.invalidPasswordOrCorruptedVault
         }
         return (header, vmk)

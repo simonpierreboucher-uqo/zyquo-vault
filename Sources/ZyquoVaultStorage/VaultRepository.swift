@@ -279,6 +279,27 @@ public final class VaultRepository {
         TransactionJournal.complete(tx, in: directory)
     }
 
+    // MARK: Folders (stored inside the encrypted manifest)
+
+    public func folders() -> [VaultFolder] {
+        manifest.folders ?? []
+    }
+
+    /// Replaces the folder list. A manifest-only change is a single atomic file
+    /// write — crash-consistent without a journal entry.
+    public func setFolders(_ folders: [VaultFolder]) throws {
+        var next = manifest
+        next.generation += 1
+        next.folders = folders
+        next.updatedAt = now()
+        try commitManifest(next)
+    }
+
+    /// Decrypts every record into its non-secret summary projection.
+    public func summaries() throws -> [ItemSummary] {
+        try manifest.records.map { ItemSummary(item: try item(id: $0.id)) }
+    }
+
     // MARK: Header maintenance (password change, recovery key)
 
     /// Changes the master password: fresh salt → fresh PKEK → re-wrap the SAME

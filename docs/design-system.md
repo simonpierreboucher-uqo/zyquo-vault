@@ -15,14 +15,22 @@ Colors (light reference): `canvas #F7F6F3`, `surface #FFFFFF`, `surfaceSunken #E
 
 Radii: 6 / 10 / 14 / 20 / 28 / ∞, all `.continuous`. Spacing: 4-pt grid (4…56). Type: SF Pro Rounded (display/titles), SF Pro (body), SF Mono medium (secrets). Elevation: (y2 blur8 6%), (y4 blur16 8%), (y12 blur32 12%). Motion: spring(0.35, 0.85), 180 ms ease-out hovers.
 
-## Components (M0)
+## Components
 
-- `ZyquoCard` — signature surface (used by the shell's status card).
-- `ZyquoButton` — primary / secondary / destructive / quiet with hover states.
+- `ZyquoCard` — signature surface (M0).
+- `ZyquoButton` — primary / secondary / destructive / quiet with hover states; labels never wrap (M0, fixed at the M4 gate).
+- `ZyquoSecureField` — input well with reveal toggle and accent focus ring (M3).
+- `ZyquoStrengthMeter` — segmented, "estimate"-labeled (M3).
+- `ZyquoBanner` — info / warning / critical / ceremony (sealGold) inline banners (M3).
+- `ZyquoSecretField` — read-only secret row: mono, concealed dots, one-reveal-at-a-time via a shared binding, copy with transient "Copied ✓"; concealed values are never exposed to accessibility (M4).
+- `ZyquoTag` — accentSoft pill, optional remove affordance (M4).
+- `ZyquoListRow` — icon tile + title/subtitle + trailing metadata; selection is an accentSoft radius.m pill (M4).
+- `ZyquoEmptyState` — icon + one line + one action; every empty screen is an invitation (M4).
 
-Remaining §3.3 components (secure fields, tags, strength meter, TOTP ring, banners, list rows, empty states) arrive with M3–M5, each added here with usage notes and screenshots.
+Still to come: `ZyquoTOTPRing`, countdown clipboard chip (M5).
 
 ## Review gates
 
-- **M0 gate (run 2026-07-22):** contrast test suite green; no raw values in UI target (audit script green); single accent; continuous corners only; the one decoration removed in self-critique was a second gradient on the shell card (now flat `surface`).
+- **M0 gate (2026-07-22):** contrast suite green; no raw values in UI target; single accent; continuous corners only; the one decoration removed in self-critique was a second gradient on the shell card (now flat `surface`).
+- **M3/M4 gate (2026-07-22):** run against the live app (screenshots in `docs/screenshots/`: `m3-lock-screen.png`, `m4-main-window.png`, `m4-item-detail.png`, `m4-item-editor.png`). Checked: radii concentricity on nested wells, AA contrast (automated), empty/error/loading states present on lock, list, detail, editor; one secret revealed at a time verified. Defect found and fixed: header action button labels wrapped at narrow detail widths (`ZyquoButton` now refuses to wrap). Auto-lock observed working live during the review session.
 - Dark mode: deliberately absent until light mode is complete (§3.6). Default appearance: Light.

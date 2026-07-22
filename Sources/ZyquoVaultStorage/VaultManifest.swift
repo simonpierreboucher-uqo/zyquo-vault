@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import ZyquoVaultCrypto
+import ZyquoVaultDomain
 
 /// The encrypted, authenticated vault inventory (CLAUDE.md §6.4). Names and
 /// counts are sensitive, so the whole payload is ciphertext; only the generation
@@ -53,6 +54,10 @@ public struct VaultManifest: Codable, Equatable, Sendable {
     public var records: [RecordEntry]
     public var attachments: [RecordEntry]
     public var tombstones: [Tombstone]
+    /// User folders (§10.3) — names are sensitive, so they live here, inside
+    /// the encrypted payload. Optional for backward compatibility with
+    /// pre-folder manifests.
+    public var folders: [VaultFolder]?
     public var lastTransactionID: UUID?
     /// SHA-256 of the previous manifest file's full bytes — rollback-detection
     /// chain (verifiable when the previous file is available, e.g. in backups).
@@ -65,6 +70,7 @@ public struct VaultManifest: Codable, Equatable, Sendable {
         records: [RecordEntry] = [],
         attachments: [RecordEntry] = [],
         tombstones: [Tombstone] = [],
+        folders: [VaultFolder]? = nil,
         lastTransactionID: UUID? = nil,
         previousManifestDigest: Data? = nil,
         updatedAt: UInt64
@@ -74,6 +80,7 @@ public struct VaultManifest: Codable, Equatable, Sendable {
         self.records = records
         self.attachments = attachments
         self.tombstones = tombstones
+        self.folders = folders
         self.lastTransactionID = lastTransactionID
         self.previousManifestDigest = previousManifestDigest
         self.updatedAt = updatedAt

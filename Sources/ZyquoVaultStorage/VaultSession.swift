@@ -255,6 +255,78 @@ public actor VaultSession {
         try requireRepository().list().count
     }
 
+    /// Non-secret summaries for lists and the in-memory search index (§10.6).
+    /// Never persisted; the UI discards its copy on lock.
+    public func summaries() throws -> [ItemSummary] {
+        try requireRepository().summaries()
+            .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    }
+
+    // MARK: Trash (§7.2 — encrypted trash; deletion honesty)
+
+    /// Moves an item to the encrypted trash (recoverable).
+    public func trash(id: UUID) throws {
+        let repo = try requireRepository()
+        var item = try repo.item(id: id)
+        item.trashedAt = Date()
+        try repo.put(item)
+    }
+
+    /// Restores an item from the trash.
+    public func restore(id: UUID) throws {
+        let repo = try requireRepository()
+        var item = try repo.item(id: id)
+        item.trashedAt = nil
+        try repo.put(item)
+    }
+
+    /// Permanent deletion: ciphertext removed, wrapped DEK gone with it. Old
+    /// backups may still hold the encrypted item (documented honestly).
+    public func deletePermanently(id: UUID) throws {
+        try requireRepository().delete(id: id)
+    }
+
+    public func emptyTrash() throws {
+        let repo = try requireRepository()
+        for entry in repo.list() {
+            if try repo.item(id: entry.id).trashedAt != nil {
+                try repo.delete(id: entry.id)
+            }
+        }
+    }
+
+    /// Duplicates an item (new identity, "copy" suffix, never a favorite).
+    @discardableResult
+    public func duplicate(id: UUID) throws -> VaultItem {
+        let repo = try requireRepository()
+        let source = try repo.item(id: id)
+        var copy = VaultItem(
+            itemType: source.itemType,
+            title: source.title + " copy",
+            subtitle: source.subtitle,
+            fields: source.fields.map {
+                VaultField(label: $0.label, value: $0.value, kind: $0.kind,
+                           isConcealed: $0.isConcealed, isCopyable: $0.isCopyable)
+            },
+            notes: source.notes,
+            tags: source.tags,
+            folderID: source.folderID
+        )
+        copy.attachmentIDs = []
+        try repo.put(copy)
+        return copy
+    }
+
+    // MARK: Folders
+
+    public func folders() throws -> [VaultFolder] {
+        try requireRepository().folders()
+    }
+
+    public func setFolders(_ folders: [VaultFolder]) throws {
+        try requireRepository().setFolders(folders)
+    }
+
     /// §5.4 password change. The UI re-verifies the current password first.
     public func changePassword(to newPassword: SecureBytes) throws {
         guard newPassword.count > 0 else { throw SessionError.emptyPasswordForbidden }

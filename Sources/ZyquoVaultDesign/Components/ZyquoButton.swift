@@ -34,6 +34,8 @@ public struct ZyquoButton: View {
             Text(title)
                 .font(Zyquo.type.headline)
                 .foregroundStyle(labelColor)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .padding(.vertical, Zyquo.spacing.xs)
                 .padding(.horizontal, Zyquo.spacing.m)
                 .frame(maxWidth: fullWidth ? .infinity : nil)

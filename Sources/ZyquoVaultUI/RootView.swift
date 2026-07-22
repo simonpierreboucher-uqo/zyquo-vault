@@ -22,7 +22,7 @@ public struct RootView: View {
                 LockScreenView(model: model)
                     .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 1.02)))
             case .unlocked:
-                UnlockedView(model: model)
+                MainWindowView(model: model)
                     .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96)))
             }
         }

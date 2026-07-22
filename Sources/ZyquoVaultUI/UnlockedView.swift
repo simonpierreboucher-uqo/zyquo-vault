@@ -4,12 +4,12 @@ import ZyquoVaultDesign
 import ZyquoVaultDomain
 import ZyquoVaultStorage
 
-/// M3 unlocked state: session status, integrity check, password change, and
-/// recovery-key rotation. The full three-pane item UI arrives with M4.
-struct UnlockedView: View {
+/// Vault settings sheet (M3 maintenance, reachable from the main window):
+/// integrity verification, master-password change, recovery-key rotation.
+struct VaultSettingsSheet: View {
     let model: AppModel
+    @Environment(\.dismiss) private var dismiss
 
-    @State private var itemCount: Int?
     @State private var hasRecoveryKey = false
     @State private var integritySummary: String?
     @State private var showChangePassword = false
@@ -17,91 +17,60 @@ struct UnlockedView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        ZStack {
-            Zyquo.color.canvas.ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: Zyquo.spacing.l) {
-                    statusCard
-                    maintenanceCard
-                    if !model.startupWarnings.isEmpty {
-                        ZyquoCard(cornerRadius: Zyquo.radius.l, padding: Zyquo.spacing.l) {
-                            VStack(alignment: .leading, spacing: Zyquo.spacing.xs) {
-                                ForEach(model.startupWarnings, id: \.self) { warning in
-                                    ZyquoBanner(.warning, warning)
-                                }
-                            }
+        VStack(spacing: Zyquo.spacing.l) {
+            HStack {
+                Text("Vault settings")
+                    .font(Zyquo.type.title)
+                    .foregroundStyle(Zyquo.color.inkPrimary)
+                Spacer()
+                ZyquoButton("Done", role: .secondary) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
+
+            ZyquoCard(cornerRadius: Zyquo.radius.l, padding: Zyquo.spacing.l) {
+                VStack(alignment: .leading, spacing: Zyquo.spacing.s) {
+                    Text("Security")
+                        .font(Zyquo.type.headline)
+                        .foregroundStyle(Zyquo.color.inkPrimary)
+                    HStack(spacing: Zyquo.spacing.s) {
+                        ZyquoButton("Change master password…", role: .secondary) {
+                            showChangePassword = true
+                        }
+                        ZyquoButton(hasRecoveryKey ? "Rotate recovery key…" : "Create recovery key…", role: .secondary) {
+                            rotateRecoveryKey()
                         }
                     }
+                    ZyquoButton("Verify vault integrity", role: .secondary, action: runIntegrityCheck)
+                    if let integritySummary {
+                        ZyquoBanner(integritySummary.hasPrefix("OK") ? .info : .critical, integritySummary)
+                    }
+                    if let errorMessage {
+                        ZyquoBanner(.critical, errorMessage)
+                    }
                 }
-                .frame(maxWidth: 480)
-                .padding(Zyquo.spacing.xl)
-                .frame(maxWidth: .infinity)
+            }
+
+            if !model.startupWarnings.isEmpty {
+                ForEach(model.startupWarnings, id: \.self) { warning in
+                    ZyquoBanner(.warning, warning)
+                }
             }
         }
-        .task { await refresh() }
+        .padding(Zyquo.spacing.xl)
+        .frame(width: 480)
+        .background(Zyquo.color.canvas)
+        .task {
+            hasRecoveryKey = await model.session.hasRecoveryKey
+        }
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordSheet(model: model)
         }
-        .sheet(isPresented: rotatedKeySheetBinding) {
-            rotatedKeySheet
-        }
-    }
-
-    private var statusCard: some View {
-        ZyquoCard(cornerRadius: Zyquo.radius.l, elevation: Zyquo.elevation.level1, padding: Zyquo.spacing.xl) {
-            VStack(spacing: Zyquo.spacing.s) {
-                HStack {
-                    VStack(alignment: .leading, spacing: Zyquo.spacing.xxs) {
-                        Text(model.vaultName)
-                            .font(Zyquo.type.title)
-                            .foregroundStyle(Zyquo.color.inkPrimary)
-                        Text("Unlocked · \(itemCount.map { "\($0) item\($0 == 1 ? "" : "s")" } ?? "…")")
-                            .font(Zyquo.type.callout)
-                            .foregroundStyle(Zyquo.color.inkSecondary)
-                    }
-                    Spacer()
-                    ZyquoButton("Lock", role: .secondary) { model.lockNow() }
-                        .keyboardShortcut("l", modifiers: .command)
-                }
-                ZyquoBanner(.info, "Item browsing and editing arrive with milestone M4. The vault itself is fully functional: encrypted records, crash-safe writes, auto-lock.")
-            }
-        }
-    }
-
-    private var maintenanceCard: some View {
-        ZyquoCard(cornerRadius: Zyquo.radius.l, elevation: Zyquo.elevation.level1, padding: Zyquo.spacing.xl) {
-            VStack(alignment: .leading, spacing: Zyquo.spacing.s) {
-                Text("Security")
-                    .font(Zyquo.type.headline)
-                    .foregroundStyle(Zyquo.color.inkPrimary)
-
-                HStack(spacing: Zyquo.spacing.s) {
-                    ZyquoButton("Change master password…", role: .secondary) {
-                        showChangePassword = true
-                    }
-                    ZyquoButton(hasRecoveryKey ? "Rotate recovery key…" : "Create recovery key…", role: .secondary) {
-                        rotateRecoveryKey()
-                    }
-                }
-
-                ZyquoButton("Verify vault integrity", role: .secondary) {
-                    runIntegrityCheck()
-                }
-                if let integritySummary {
-                    ZyquoBanner(integritySummary.hasPrefix("OK") ? .info : .critical, integritySummary)
-                }
-                if let errorMessage {
-                    ZyquoBanner(.critical, errorMessage)
-                }
-            }
-        }
-    }
-
-    private var rotatedKeySheetBinding: Binding<Bool> {
-        Binding(
+        .sheet(isPresented: Binding(
             get: { rotatedKeyDisplay != nil },
             set: { if !$0 { rotatedKeyDisplay = nil } }
-        )
+        )) {
+            rotatedKeySheet
+        }
     }
 
     private var rotatedKeySheet: some View {
@@ -120,11 +89,6 @@ struct UnlockedView: View {
             .frame(width: 420)
         }
         .padding(Zyquo.spacing.l)
-    }
-
-    private func refresh() async {
-        itemCount = try? await model.session.itemCount()
-        hasRecoveryKey = await model.session.hasRecoveryKey
     }
 
     private func runIntegrityCheck() {

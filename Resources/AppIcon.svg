@@ -1,0 +1,54 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Zyquo brand gradient: vivid accent blue into deep indigo -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"   stop-color="#3B78FF"/>
+      <stop offset="0.55" stop-color="#0B5FFF"/>
+      <stop offset="1"   stop-color="#0733B8"/>
+    </linearGradient>
+    <!-- Top-left sheen -->
+    <radialGradient id="sheen" cx="0.28" cy="0.20" r="0.9">
+      <stop offset="0"   stop-color="#FFFFFF" stop-opacity="0.28"/>
+      <stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0.05"/>
+      <stop offset="1"   stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Subtle inner-bottom shade for depth -->
+    <linearGradient id="depth" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1"   stop-color="#001133" stop-opacity="0.22"/>
+    </linearGradient>
+    <!-- Vault-edition Z: warm orange -->
+    <linearGradient id="zOrange" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"   stop-color="#FFB84D"/>
+      <stop offset="0.5" stop-color="#FF9500"/>
+      <stop offset="1"   stop-color="#F07300"/>
+    </linearGradient>
+  </defs>
+
+  <!-- macOS squircle -->
+  <rect x="112" y="112" width="800" height="800" rx="188" ry="188" fill="url(#bg)"/>
+  <rect x="112" y="112" width="800" height="800" rx="188" ry="188" fill="url(#sheen)"/>
+  <rect x="112" y="112" width="800" height="800" rx="188" ry="188" fill="url(#depth)"/>
+
+  <!-- Bold geometric Z — orange for the Vault edition -->
+  <g fill="url(#zOrange)">
+    <!-- top bar -->
+    <rect x="312" y="272" width="400" height="96" rx="24" ry="24"/>
+    <!-- diagonal (top-right to bottom-left) -->
+    <polygon points="655.4,285.9 718.6,356.1 368.6,650.1 305.4,579.9"/>
+    <!-- bottom bar -->
+    <rect x="312" y="556" width="400" height="96" rx="24" ry="24"/>
+  </g>
+
+  <!-- Vault indicator: padlock, centered under the Z -->
+  <g>
+    <!-- shackle -->
+    <path d="M 466 768 L 466 738 A 46 46 0 0 1 558 738 L 558 768"
+          fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"/>
+    <!-- body -->
+    <rect x="440" y="762" width="144" height="104" rx="24" ry="24" fill="#FFFFFF"/>
+    <!-- keyhole -->
+    <circle cx="512" cy="804" r="15" fill="#0733B8"/>
+    <rect x="504" y="806" width="16" height="34" rx="8" ry="8" fill="#0733B8"/>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+Zyquo Vault
+Copyright © 2026 Simon-Pierre Boucher. All rights reserved.
+
+This source code is provided for inspection and security review. No license is
+granted for redistribution or commercial use without written permission from
+the copyright holder. (A final open-source license decision is pending and
+will be recorded in docs/decisions/ before v1.0.)
+
+Third-party code:
+  Sources/CArgon2/ — the official Argon2 reference implementation
+  (github.com/P-H-C/phc-winner-argon2), dual-licensed CC0 1.0 / Apache 2.0.
+  See Sources/CArgon2/LICENSE.

@@ -20,6 +20,24 @@ public enum VaultStore {
         random: SecureRandomSource = SystemSecureRandom(),
         now: @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) }
     ) throws -> UUID {
+        let (header, vmk) = try createVaultKeepingKeys(
+            at: directory, password: password, parameters: parameters,
+            random: random, now: now
+        )
+        vmk.wipe()
+        return header.vaultID
+    }
+
+    /// Creation core that hands the live VMK back to the caller (used by
+    /// `VaultRepository.create` to write the initial manifest without a second
+    /// KDF run). Caller owns the VMK and must `wipe()` it.
+    static func createVaultKeepingKeys(
+        at directory: URL,
+        password: SecureBytes,
+        parameters: Argon2id.Parameters = .baseline,
+        random: SecureRandomSource = SystemSecureRandom(),
+        now: @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) }
+    ) throws -> (header: VaultHeader, vmk: SecureBytes) {
         let fm = FileManager.default
         try fm.createDirectory(
             at: directory, withIntermediateDirectories: true,
@@ -34,22 +52,26 @@ public enum VaultStore {
             parameters: parameters,
             random: random
         )
-        defer { vmk.wipe() }
 
         let timestamp = now()
         var header = VaultHeader(
             vaultID: vaultID, createdAt: timestamp, updatedAt: timestamp, wrappedVMK: wrapped
         )
         header.headerAuthTag = headerAuthTag(for: header, vmk: vmk)
-        try AtomicFileWriter.write(try header.encoded(), to: directory.appendingPathComponent(headerFileName))
+        do {
+            try AtomicFileWriter.write(try header.encoded(), to: directory.appendingPathComponent(headerFileName))
 
-        // Creation is not done until the vault provably reopens with this password.
-        let reopened = try openVault(at: directory, password: password)
-        defer { reopened.vmk.wipe() }
-        guard reopened.header.vaultID == vaultID else {
-            throw StorageError.invalidHeader(reason: "verification reopen mismatch")
+            // Creation is not done until the vault provably reopens with this password.
+            let reopened = try openVault(at: directory, password: password)
+            reopened.vmk.wipe()
+            guard reopened.header.vaultID == vaultID else {
+                throw StorageError.invalidHeader(reason: "verification reopen mismatch")
+            }
+        } catch {
+            vmk.wipe()
+            throw error
         }
-        return vaultID
+        return (header, vmk)
     }
 
     /// Opens a vault: parses + validates the header, unwraps the VMK (this IS the

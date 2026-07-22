@@ -82,9 +82,30 @@ case ("vault", "verify"):
     let password = readPassword(prompt: "Master password: ")
     defer { password.wipe() }
     do {
-        let opened = try VaultStore.openVault(at: URL(fileURLWithPath: path), password: password)
-        opened.vmk.wipe()
-        print("OK — header authenticated and vault master key unwrapped.")
+        let repository = try VaultRepository.open(at: URL(fileURLWithPath: path), password: password)
+        defer { repository.close() }
+        for warning in repository.permissionWarnings {
+            print("warning: \(warning)")
+        }
+        let report = repository.verifyIntegrity(deep: true)
+        print("Header:      OK — authenticated, vault master key unwrapped")
+        print("Manifest:    OK — generation \(repository.manifest.generation), \(report.recordCount) record(s)")
+        if report.isClean {
+            print("Records:     OK — every record authenticated (deep verification)")
+        } else {
+            if !report.missingRecords.isEmpty { print("MISSING:     \(report.missingRecords.map(\.uuidString).joined(separator: ", "))") }
+            if !report.corruptedRecords.isEmpty { print("CORRUPTED:   \(report.corruptedRecords.map(\.uuidString).joined(separator: ", "))") }
+            if !report.unexpectedFiles.isEmpty { print("UNEXPECTED:  \(report.unexpectedFiles.joined(separator: ", "))") }
+            if !report.orphanedPendingFiles.isEmpty { print("ORPHANED:    \(report.orphanedPendingFiles.joined(separator: ", "))") }
+            fail("integrity verification found problems (see above).", code: 4)
+        }
+    } catch let error as StorageError {
+        switch error {
+        case .fileLocked(let pid):
+            fail("the vault is in use\(pid.map { " by process \($0)" } ?? "").", code: 5)
+        default:
+            fail("the password is incorrect or the vault file is damaged.", code: 3)
+        }
     } catch {
         fail("the password is incorrect or the vault file is damaged.", code: 3)
     }

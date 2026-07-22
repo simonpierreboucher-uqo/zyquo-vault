@@ -11,5 +11,9 @@ public enum StorageError: Error, Equatable, Sendable {
     case transactionRecoveryRequired
     case atomicWriteFailed(reason: String)
     case corruptedRecord(UUID)
+    /// Requested record is not in the manifest (no such item).
+    case recordNotFound(UUID)
+    /// Manifest lists the record but its file is absent — integrity failure.
+    case missingRecord(UUID)
     case unsupportedFormatVersion(found: UInt32, minimumReader: UInt32)
 }

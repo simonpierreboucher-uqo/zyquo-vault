@@ -61,6 +61,55 @@ Reject without crashing: bad magic, truncation, trailing bytes, oversized input,
 
 Writes are: temp file in the same directory → `F_FULLFSYNC` (fallback `fsync`) → chmod 0600 → re-read and byte-compare → atomic rename. macOS gives no portable directory-fsync guarantee after rename; this residual window is accepted and documented. Stale `.zyquo-tmp-*` files are swept at startup.
 
-## Manifest, records, attachments, journal **(M2/M6)**
+## Record envelope (`records/<uuid>.zyqrec`)
 
-To be specified when implemented. Commitments already fixed by design: the manifest is encrypted (names and counts are sensitive) and chains previous-manifest digests for rollback detection; every record file is independently authenticated with per-record DEKs and AAD binding (object type 2, its UUID, its revision); attachments use chunked authenticated encryption with per-chunk AAD (attachment UUID + chunk index).
+Independently authenticated; integers big-endian; payload ≤ 16 MiB.
+
+| Offset | Size | Field | Constraints |
+|---|---|---|---|
+| 0 | 4 | magic `"ZYQR"` | exact |
+| 4 | 4 | envelope version | 1 |
+| 8 | 16 | record UUID | must equal the filename stem |
+| 24 | 4 | schema version | cross-checked against the manifest entry |
+| 28 | 8 | revision | cross-checked against the manifest entry |
+| 36 | 12 | DEK-wrap nonce | |
+| 48 | 4 | DEK ciphertext length | must be 32 |
+| 52 | 32 | DEK ciphertext | wrapped by the `record-wrapping` HKDF subkey |
+| 84 | 16 | DEK-wrap GCM tag | |
+| 100 | 12 | payload nonce | |
+| 112 | 8 | payload ciphertext length N | ≤ 16 MiB |
+| 120 | N | payload ciphertext | `VaultItem` JSON under the record's random DEK |
+| 120+N | 16 | payload GCM tag | |
+
+Both seals use the canonical AAD (vault UUID, record UUID, type 2, schema version, revision) under different keys. A record whose revision or schema version disagrees with the manifest is treated as corrupted — a substituted stale file is never silently accepted. The item JSON's `id` must equal the record UUID.
+
+## Manifest (`vault.manifest`)
+
+| Offset | Size | Field | Constraints |
+|---|---|---|---|
+| 0 | 4 | magic `"ZYQM"` | exact |
+| 4 | 4 | manifest format version | 1 |
+| 8 | 8 | generation | monotonically increasing; feeds the AAD |
+| 16 | 12 | nonce | |
+| 28 | 8 | ciphertext length N | ≤ 8 MiB |
+| 36 | N | ciphertext | JSON payload, `manifest-protection` HKDF subkey |
+| 36+N | 16 | GCM tag | |
+
+AAD: (vault UUID, vault UUID, type 4, schema 1, revision = generation). The encrypted payload holds: vault UUID and generation (both must match the outer values), record and attachment inventories `{id, revision, schemaVersion}`, tombstones `{id, deletedAt}`, last transaction UUID, SHA-256 digest of the previous manifest file (rollback-detection chain, verifiable against backups), and the update timestamp. Names and counts are ciphertext by design.
+
+## Transaction journal (`journal/<txid>.zyqjournal`)
+
+Plain JSON, **no plaintext secrets** — transaction UUID, operation (`put`/`delete`), record UUID, previous/new manifest generation, timestamp. The atomic manifest replacement is the commit point:
+
+- **put:** journal → write `records/<uuid>.zyqrec.pending` → replace manifest (COMMIT) → rename pending over final → delete journal.
+- **delete:** journal → replace manifest without the entry, adding a tombstone (COMMIT) → delete record file → delete journal.
+
+Recovery on open, per surviving entry: manifest generation ≥ entry's new generation ⇒ committed ⇒ roll forward (finish the rename/deletion); otherwise ⇒ roll back (remove the pending file). The last known valid state is never auto-discarded.
+
+## Lock file (`lock`)
+
+Plain JSON: `{pid, processName, acquiredAt}`. A lock with a live owner PID — even this process — rejects opening (`fileLocked`). A lock is reclaimed only when its PID provably no longer exists (`kill(pid,0)` → ESRCH), or when unreadable **and** older than 24 h. A lock file is never deleted merely because it exists.
+
+## Attachments **(M6)**
+
+To be specified when implemented: chunked authenticated encryption, per-chunk AAD (attachment UUID + chunk index, object type 3), encrypted original filename and MIME type in the metadata.

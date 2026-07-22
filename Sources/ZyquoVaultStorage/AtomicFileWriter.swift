@@ -53,6 +53,20 @@ public enum AtomicFileWriter {
         }
     }
 
+    /// Atomically replaces `destination` with `source` (rename semantics).
+    public static func atomicReplace(from source: URL, to destination: URL) throws {
+        let fm = FileManager.default
+        do {
+            if fm.fileExists(atPath: destination.path) {
+                _ = try fm.replaceItemAt(destination, withItemAt: source)
+            } else {
+                try fm.moveItem(at: source, to: destination)
+            }
+        } catch {
+            throw StorageError.atomicWriteFailed(reason: "replace failed")
+        }
+    }
+
     /// Sweeps stale temp files left by an interrupted write.
     public static func sweepStaleTempFiles(in directory: URL) {
         let fm = FileManager.default

@@ -28,6 +28,7 @@ public struct RootView: View {
                     VStack(alignment: .leading, spacing: Zyquo.spacing.xs) {
                         milestoneRow(done: true, "Cryptographic core — Argon2id, HKDF, AES-256-GCM")
                         milestoneRow(done: true, "Authenticated vault header with tamper detection")
+                        milestoneRow(done: true, "Crash-safe encrypted records, manifest and journal")
                         milestoneRow(done: false, "Vault creation and unlock (milestone M3)")
                         milestoneRow(done: false, "Items, search, generator (milestones M4–M5)")
                     }

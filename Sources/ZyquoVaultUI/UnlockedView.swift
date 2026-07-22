@@ -29,6 +29,47 @@ struct VaultSettingsSheet: View {
 
             ZyquoCard(cornerRadius: Zyquo.radius.l, padding: Zyquo.spacing.l) {
                 VStack(alignment: .leading, spacing: Zyquo.spacing.s) {
+                    Text("Locking")
+                        .font(Zyquo.type.headline)
+                        .foregroundStyle(Zyquo.color.inkPrimary)
+                    Picker("Auto-lock after", selection: Binding(
+                        get: { model.securitySettings.autoLockSeconds },
+                        set: { model.securitySettings.autoLockSeconds = $0 }
+                    )) {
+                        Text("1 minute").tag(60)
+                        Text("5 minutes").tag(300)
+                        Text("15 minutes").tag(900)
+                        Text("1 hour").tag(3600)
+                    }
+                    .font(Zyquo.type.callout)
+                    Toggle("Lock when the Mac sleeps", isOn: Binding(
+                        get: { model.securitySettings.lockOnSleep },
+                        set: { model.securitySettings.lockOnSleep = $0 }
+                    ))
+                    .toggleStyle(.switch)
+                    .font(Zyquo.type.callout)
+                    Toggle("Lock when the screen locks", isOn: Binding(
+                        get: { model.securitySettings.lockOnScreenLock },
+                        set: { model.securitySettings.lockOnScreenLock = $0 }
+                    ))
+                    .toggleStyle(.switch)
+                    .font(Zyquo.type.callout)
+                    Picker("Clear clipboard after", selection: Binding(
+                        get: { model.clipboard.clearAfterSeconds ?? -1 },
+                        set: { model.clipboard.clearAfterSeconds = $0 == -1 ? nil : $0 }
+                    )) {
+                        Text("10 seconds").tag(10)
+                        Text("30 seconds").tag(30)
+                        Text("1 minute").tag(60)
+                        Text("2 minutes").tag(120)
+                        Text("Never (not recommended)").tag(-1)
+                    }
+                    .font(Zyquo.type.callout)
+                }
+            }
+
+            ZyquoCard(cornerRadius: Zyquo.radius.l, padding: Zyquo.spacing.l) {
+                VStack(alignment: .leading, spacing: Zyquo.spacing.s) {
                     Text("Security")
                         .font(Zyquo.type.headline)
                         .foregroundStyle(Zyquo.color.inkPrimary)

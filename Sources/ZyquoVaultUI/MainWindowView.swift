@@ -44,6 +44,22 @@ struct MainWindowView: View {
         .sheet(isPresented: $showSettings) {
             VaultSettingsSheet(model: model)
         }
+        .background { sectionShortcuts }
+    }
+
+    /// §10.12 ⌘1–4: All items, Favorites, Trash, first folder.
+    private var sectionShortcuts: some View {
+        Group {
+            Button("") { browser.filter = .all }.keyboardShortcut("1", modifiers: .command)
+            Button("") { browser.filter = .favorites }.keyboardShortcut("2", modifiers: .command)
+            Button("") { browser.filter = .trash }.keyboardShortcut("3", modifiers: .command)
+            Button("") {
+                if let folder = browser.folders.first { browser.filter = .folder(folder.id) }
+            }.keyboardShortcut("4", modifiers: .command)
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
     }
 
     // MARK: Sidebar (§3.4: canvas background, rounded selection pills)

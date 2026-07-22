@@ -178,22 +178,4 @@ final class BrowserModel {
         await refresh()
     }
 
-    // MARK: Clipboard (M4 minimal — M5 adds the countdown chip + options)
-
-    /// Copies a secret and clears it after 30 s **only if** the clipboard still
-    /// holds the same value (§10.7).
-    nonisolated static func copySecret(_ value: String) {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        // Transient + concealed hints for clipboard managers (best-effort).
-        pasteboard.setString("", forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
-        pasteboard.setString("", forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
-        pasteboard.setString(value, forType: .string)
-        let changeCount = pasteboard.changeCount
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
-            if NSPasteboard.general.changeCount == changeCount {
-                NSPasteboard.general.clearContents()
-            }
-        }
-    }
 }

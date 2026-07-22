@@ -1,4 +1,5 @@
 import SwiftUI
+import ZyquoVaultCrypto
 import ZyquoVaultDesign
 import ZyquoVaultDomain
 
@@ -20,10 +21,17 @@ struct ItemDetailView: View {
         .onChange(of: browser.selectedItemID) { revealedField = nil }
     }
 
+    private var totpFields: [VaultField] {
+        browser.detailItem?.fields.filter { $0.kind == .totpSeed && !$0.value.reveal().isEmpty } ?? []
+    }
+
     private func detail(_ item: VaultItem) -> some View {
         ScrollView {
             VStack(spacing: Zyquo.spacing.m) {
                 headerCard(item)
+                ForEach(totpFields) { field in
+                    TOTPCodeCard(seedField: field, clipboard: browser.app.clipboard)
+                }
                 if !item.fields.isEmpty {
                     fieldsCard(item)
                 }
@@ -39,6 +47,37 @@ struct ItemDetailView: View {
             .frame(maxWidth: 560)
             .frame(maxWidth: .infinity)
         }
+        .background(alignment: .bottom) { copyShortcuts(item) }
+    }
+
+    /// §10.12 secret-copy shortcuts for the selected item: ⌘⇧C password,
+    /// ⌘⇧U username, ⌘⇧T one-time code. Hidden controls, keyboard-only.
+    private func copyShortcuts(_ item: VaultItem) -> some View {
+        Group {
+            Button("") {
+                if let password = item.fields.first(where: { $0.kind == .password }) {
+                    browser.app.clipboard.copySecret(password.value.reveal())
+                }
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+            Button("") {
+                if let username = item.fields.first(where: { $0.kind == .username }) {
+                    browser.app.clipboard.copySecret(username.value.reveal())
+                }
+            }
+            .keyboardShortcut("u", modifiers: [.command, .shift])
+            Button("") {
+                if let seed = totpFields.first,
+                   let config = try? TOTPConfiguration(secret: Base32.decode(seed.value.reveal())),
+                   let result = try? TOTPGenerator.code(for: config) {
+                    browser.app.clipboard.copySecret(result.code)
+                }
+            }
+            .keyboardShortcut("t", modifiers: [.command, .shift])
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
     }
 
     private func headerCard(_ item: VaultItem) -> some View {
@@ -105,12 +144,16 @@ struct ItemDetailView: View {
                         concealable: field.isConcealed,
                         copyable: field.isCopyable,
                         revealedField: $revealedField,
-                        onCopy: { BrowserModel.copySecret(field.value.reveal()) }
+                        onCopy: { browser.app.clipboard.copySecret(field.value.reveal()) }
                     )
                 }
-                Text("Copied secrets are cleared from the clipboard after 30 seconds if unchanged.")
-                    .font(Zyquo.type.caption)
-                    .foregroundStyle(Zyquo.color.inkTertiary)
+                HStack {
+                    ClipboardChip(manager: browser.app.clipboard)
+                    Spacer()
+                    Text("⌘⇧C password · ⌘⇧U username\(totpFields.isEmpty ? "" : " · ⌘⇧T code")")
+                        .font(Zyquo.type.caption)
+                        .foregroundStyle(Zyquo.color.inkTertiary)
+                }
             }
         }
     }
@@ -121,11 +164,7 @@ struct ItemDetailView: View {
                 Text("Notes")
                     .font(Zyquo.type.caption)
                     .foregroundStyle(Zyquo.color.inkSecondary)
-                Text(notes)
-                    .font(Zyquo.type.body)
-                    .foregroundStyle(Zyquo.color.inkPrimary)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                MarkdownNoteView(source: notes)
             }
         }
     }

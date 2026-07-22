@@ -14,6 +14,7 @@ struct ItemEditorView: View {
     @State private var tagInput = ""
     @State private var showDiscardDialog = false
     @State private var revealedFieldIDs: Set<UUID> = []
+    @State private var generatorFieldID: UUID?
 
     init(browser: BrowserModel, original: VaultItem, isNew: Bool) {
         self.browser = browser
@@ -166,6 +167,25 @@ struct ItemEditorView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(concealedNow ? "Reveal value" : "Conceal value")
+            }
+            if field.wrappedValue.isConcealed || field.wrappedValue.kind == .password {
+                Button {
+                    generatorFieldID = id
+                } label: {
+                    Image(systemName: "wand.and.stars")
+                        .foregroundStyle(Zyquo.color.accent)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Generate a value for \(field.wrappedValue.label)")
+                .popover(isPresented: Binding(
+                    get: { generatorFieldID == id },
+                    set: { if !$0 { generatorFieldID = nil } }
+                )) {
+                    GeneratorPopover { value in
+                        field.wrappedValue.value = SensitiveFieldValue(value)
+                        generatorFieldID = nil
+                    }
+                }
             }
         }
     }

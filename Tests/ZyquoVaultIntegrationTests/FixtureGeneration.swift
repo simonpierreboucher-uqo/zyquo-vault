@@ -41,7 +41,26 @@ struct FixtureGeneration {
         try repo.put(VaultItem(
             itemType: .secureNote,
             title: "Fixture note",
-            notes: "This vault is a labeled test fixture. test-api-key-000000",
+            notes: """
+            # Fixture note
+            This vault is a **labeled test fixture**. test-api-key-000000
+            - [x] markdown rendering
+            - [ ] nothing real in here
+            """,
+            tags: ["fixture"]
+        ))
+        try repo.put(VaultItem(
+            itemType: .totp,
+            title: "Fixture one-time code",
+            fields: [
+                VaultField(
+                    label: "Secret (base32)",
+                    // RFC 6238 test secret "12345678901234567890" — not a real account.
+                    value: SensitiveFieldValue("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"),
+                    kind: .totpSeed,
+                    isConcealed: true
+                )
+            ],
             tags: ["fixture"]
         ))
         #expect(repo.verifyIntegrity(deep: true).isClean)

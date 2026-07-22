@@ -18,6 +18,7 @@ public final class AppModel {
     }
 
     public let session = VaultSession()
+    public let clipboard = ClipboardManager()
     public private(set) var screen: Screen = .loading
     public private(set) var vaultDirectory: URL?
     public var vaultName: String = "My vault"
@@ -57,6 +58,7 @@ public final class AppModel {
 
     public func bootstrap() {
         installSystemObservers()
+        applyStoredSecuritySettings()
         if let dir = Self.discoverDefaultVault() {
             vaultDirectory = dir
             vaultName = Self.storedName(for: dir) ?? "My vault"
@@ -97,6 +99,40 @@ public final class AppModel {
         UserDefaults.standard.set(names, forKey: "vaultDisplayNames")
     }
 
+    // MARK: Security settings (non-sensitive; UserDefaults per §6.1)
+
+    public struct SecuritySettings: Equatable {
+        public var autoLockSeconds: Int = 300
+        public var lockOnSleep = true
+        public var lockOnScreenLock = true
+    }
+
+    public var securitySettings = SecuritySettings() {
+        didSet { persistAndApplySecuritySettings() }
+    }
+
+    private func applyStoredSecuritySettings() {
+        let defaults = UserDefaults.standard
+        var settings = SecuritySettings()
+        if let seconds = defaults.object(forKey: "autoLockSeconds") as? Int { settings.autoLockSeconds = seconds }
+        if let sleep = defaults.object(forKey: "lockOnSleep") as? Bool { settings.lockOnSleep = sleep }
+        if let screen = defaults.object(forKey: "lockOnScreenLock") as? Bool { settings.lockOnScreenLock = screen }
+        securitySettings = settings
+    }
+
+    private func persistAndApplySecuritySettings() {
+        let defaults = UserDefaults.standard
+        defaults.set(securitySettings.autoLockSeconds, forKey: "autoLockSeconds")
+        defaults.set(securitySettings.lockOnSleep, forKey: "lockOnSleep")
+        defaults.set(securitySettings.lockOnScreenLock, forKey: "lockOnScreenLock")
+        let configuration = VaultSession.Configuration(
+            autoLockAfter: .seconds(securitySettings.autoLockSeconds),
+            lockOnSleep: securitySettings.lockOnSleep,
+            lockOnScreenLock: securitySettings.lockOnScreenLock
+        )
+        Task { await session.updateConfiguration(configuration) }
+    }
+
     // MARK: System lock triggers (§8.3)
 
     private func installSystemObservers() {
@@ -107,6 +143,7 @@ public final class AppModel {
         Task { [weak self] in
             guard let self else { return }
             for await _ in await self.session.lockEventStream() {
+                self.clipboard.clearIfOwned() // locking always clears owned values
                 if self.screen == .unlocked { self.screen = .locked }
             }
         }

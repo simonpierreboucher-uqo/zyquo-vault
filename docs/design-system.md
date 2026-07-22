@@ -27,10 +27,12 @@ Radii: 6 / 10 / 14 / 20 / 28 / ∞, all `.continuous`. Spacing: 4-pt grid (4…5
 - `ZyquoListRow` — icon tile + title/subtitle + trailing metadata; selection is an accentSoft radius.m pill (M4).
 - `ZyquoEmptyState` — icon + one line + one action; every empty screen is an invitation (M4).
 
-Still to come: `ZyquoTOTPRing`, countdown clipboard chip (M5).
+- `ZyquoTOTPRing` — circular countdown, accent stroke, `caution` under 5 s; static under Reduce Motion (M5).
+- `ClipboardChip` (UI layer) — "Clears in 27 s" capsule after copying a secret (M5).
 
 ## Review gates
 
 - **M0 gate (2026-07-22):** contrast suite green; no raw values in UI target; single accent; continuous corners only; the one decoration removed in self-critique was a second gradient on the shell card (now flat `surface`).
 - **M3/M4 gate (2026-07-22):** run against the live app (screenshots in `docs/screenshots/`: `m3-lock-screen.png`, `m4-main-window.png`, `m4-item-detail.png`, `m4-item-editor.png`). Checked: radii concentricity on nested wells, AA contrast (automated), empty/error/loading states present on lock, list, detail, editor; one secret revealed at a time verified. Defect found and fixed: header action button labels wrapped at narrow detail widths (`ZyquoButton` now refuses to wrap). Auto-lock observed working live during the review session.
+- **M5 gate (2026-07-22):** live-app review of the TOTP card (`m5-totp-detail.png`: grouped mono code, ring, copy) and Markdown notes (`m5-markdown-note.png`: headings, bold, checklists — hostile input covered by tests, no HTML path exists). Generator popover reviewed for token compliance; entropy always labeled "estimate".
 - Dark mode: deliberately absent until light mode is complete (§3.6). Default appearance: Light.

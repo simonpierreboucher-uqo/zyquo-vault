@@ -102,6 +102,11 @@ let package = Package(
             dependencies: ["ZyquoVaultCrypto", "ZyquoVaultStorage", "ZyquoVaultDomain"],
             swiftSettings: swiftSettings
         ),
+        .testTarget(
+            name: "ZyquoVaultUITests",
+            dependencies: ["ZyquoVaultUI"],
+            swiftSettings: swiftSettings
+        ),
     ]
 )
 

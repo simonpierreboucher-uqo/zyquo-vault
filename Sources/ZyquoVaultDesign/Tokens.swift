@@ -1,52 +1,64 @@
+import AppKit
 import SwiftUI
 
 /// "Zyquo Soft Light" design tokens (CLAUDE.md §3). Every color, radius, spacing,
 /// font, and shadow in the UI comes from here — UI code never carries raw values.
-/// Light theme is the reference; dark values will be derived from the same names
-/// after light mode is complete (§3.6).
+/// Light is the reference theme; dark values are derived from the SAME token
+/// names via dynamic colors (§3.6). Default appearance: Light.
 public enum Zyquo {
 
-    // MARK: Color
+    // MARK: Color (light / dark pairs)
 
     public enum color {
-        /// App background — warm off-white, never pure white.
-        public static let canvas = rgb(0xF7F6F3)
+        /// App background — warm off-white / warm near-black.
+        public static let canvas = dyn(0xF7F6F3, 0x161514)
         /// Cards, panels, sheets.
-        public static let surface = rgb(0xFFFFFF)
+        public static let surface = dyn(0xFFFFFF, 0x1E1D1B)
         /// Wells, input backgrounds, code/secret fields.
-        public static let surfaceSunken = rgb(0xEFEEEA)
-        /// Primary text — near-black, warm.
-        public static let inkPrimary = rgb(0x1C1B1A)
+        public static let surfaceSunken = dyn(0xEFEEEA, 0x141312)
+        /// Primary text — near-black, warm / warm near-white.
+        public static let inkPrimary = dyn(0x1C1B1A, 0xECEAE6)
         /// Secondary text, labels.
-        public static let inkSecondary = rgb(0x6E6B66)
+        public static let inkSecondary = dyn(0x6E6B66, 0xA5A29C)
         /// Placeholders, disabled, metadata.
-        public static let inkTertiary = rgb(0xA5A29C)
+        public static let inkTertiary = dyn(0xA5A29C, 0x6E6B66)
         /// Zyquo Blue — primary actions, selection, focus. Refined from the spec's
-        /// #3D6BFF reference so white button labels meet WCAG AA 4.5:1 (§3.2 rule
-        /// beats the reference value; see docs/design-system.md).
-        public static let accent = rgb(0x3563F5)
+        /// #3D6BFF reference so white button labels meet WCAG AA 4.5:1 in both
+        /// themes (§3.2 rule beats the reference value; see docs/design-system.md).
+        public static let accent = dyn(0x3563F5, 0x3D63E8)
         /// Selected rows, chips, hover fills.
-        public static let accentSoft = accent.opacity(0.11)
+        public static let accentSoft = accent.opacity(0.13)
         /// Success, "copied", strong passwords.
-        public static let positive = rgb(0x2E9E6B)
+        public static let positive = dyn(0x2E9E6B, 0x3FB57E)
         /// Warnings, aging passwords.
-        public static let caution = rgb(0xC98A2B)
+        public static let caution = dyn(0xC98A2B, 0xD89A44)
         /// Destructive actions, integrity failures — muted, not fire-alarm red.
-        public static let critical = rgb(0xC94F3D)
+        public static let critical = dyn(0xC94F3D, 0xD96A57)
         /// Reserved: favorites star, recovery-key ceremony accents.
-        public static let sealGold = rgb(0xB9975B)
+        public static let sealGold = dyn(0xB9975B, 0xCBA96B)
         /// Separators — used sparingly; whitespace is the primary grouping tool.
         public static let hairline = inkPrimary.opacity(0.08)
+        /// Elevation shadows — always ink-dark, never theme-inverted.
+        public static let shadow = rgb(0x000000)
 
-        /// Raw sRGB components, exposed for the automated contrast tests.
+        /// Raw sRGB values for the automated WCAG contrast tests, both themes.
         public static let contrastPairs: [(name: String, foreground: UInt32, background: UInt32, minimumRatio: Double)] = [
-            ("inkPrimary on canvas", 0x1C1B1A, 0xF7F6F3, 4.5),
-            ("inkPrimary on surface", 0x1C1B1A, 0xFFFFFF, 4.5),
-            ("inkSecondary on canvas", 0x6E6B66, 0xF7F6F3, 4.5),
-            ("inkSecondary on surface", 0x6E6B66, 0xFFFFFF, 4.5),
-            ("accent on surface (large/icon)", 0x3563F5, 0xFFFFFF, 3.0),
-            ("white on accent", 0xFFFFFF, 0x3563F5, 4.5),
-            ("inkPrimary on surfaceSunken", 0x1C1B1A, 0xEFEEEA, 4.5),
+            // Light
+            ("inkPrimary on canvas (light)", 0x1C1B1A, 0xF7F6F3, 4.5),
+            ("inkPrimary on surface (light)", 0x1C1B1A, 0xFFFFFF, 4.5),
+            ("inkSecondary on canvas (light)", 0x6E6B66, 0xF7F6F3, 4.5),
+            ("inkSecondary on surface (light)", 0x6E6B66, 0xFFFFFF, 4.5),
+            ("accent on surface, large/icon (light)", 0x3563F5, 0xFFFFFF, 3.0),
+            ("white on accent (light)", 0xFFFFFF, 0x3563F5, 4.5),
+            ("inkPrimary on surfaceSunken (light)", 0x1C1B1A, 0xEFEEEA, 4.5),
+            // Dark
+            ("inkPrimary on canvas (dark)", 0xECEAE6, 0x161514, 4.5),
+            ("inkPrimary on surface (dark)", 0xECEAE6, 0x1E1D1B, 4.5),
+            ("inkSecondary on canvas (dark)", 0xA5A29C, 0x161514, 4.5),
+            ("inkSecondary on surface (dark)", 0xA5A29C, 0x1E1D1B, 4.5),
+            ("accent on surface, large/icon (dark)", 0x3D63E8, 0x1E1D1B, 3.0),
+            ("white on accent (dark)", 0xFFFFFF, 0x3D63E8, 4.5),
+            ("inkPrimary on surfaceSunken (dark)", 0xECEAE6, 0x141312, 4.5),
         ]
 
         static func rgb(_ hex: UInt32) -> Color {
@@ -57,6 +69,23 @@ public enum Zyquo {
                 blue: Double(hex & 0xFF) / 255,
                 opacity: 1
             )
+        }
+
+        /// Dynamic light/dark color resolved against the effective appearance.
+        static func dyn(_ light: UInt32, _ dark: UInt32) -> Color {
+            func nsRGB(_ hex: UInt32) -> NSColor {
+                NSColor(
+                    srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
+                    green: CGFloat((hex >> 8) & 0xFF) / 255,
+                    blue: CGFloat(hex & 0xFF) / 255,
+                    alpha: 1
+                )
+            }
+            return Color(nsColor: NSColor(name: nil) { appearance in
+                appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                    ? nsRGB(dark)
+                    : nsRGB(light)
+            })
         }
     }
 
@@ -139,10 +168,11 @@ public enum Zyquo {
 }
 
 extension View {
-    /// Applies a Zyquo elevation shadow (ink-tinted, soft and diffuse).
+    /// Applies a Zyquo elevation shadow — always shadow-dark, in both themes
+    /// (a theme-inverted "white shadow" would be a defect, not a feature).
     public func zyquoShadow(_ level: Zyquo.Elevation) -> some View {
         shadow(
-            color: Zyquo.color.inkPrimary.opacity(level.opacity),
+            color: Zyquo.color.shadow.opacity(level.opacity),
             radius: level.blur / 2, x: 0, y: level.y
         )
     }

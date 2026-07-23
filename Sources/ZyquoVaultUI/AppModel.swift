@@ -59,6 +59,10 @@ public final class AppModel {
     public func bootstrap() {
         installSystemObservers()
         applyStoredSecuritySettings()
+        if let stored = UserDefaults.standard.string(forKey: "appearance"),
+           let parsed = Appearance(rawValue: stored) {
+            appearance = parsed
+        }
         if let dir = Self.discoverDefaultVault() {
             vaultDirectory = dir
             vaultName = Self.storedName(for: dir) ?? "My vault"
@@ -101,6 +105,24 @@ public final class AppModel {
         var names = (UserDefaults.standard.dictionary(forKey: "vaultDisplayNames") as? [String: String]) ?? [:]
         names[directory.lastPathComponent] = name
         UserDefaults.standard.set(names, forKey: "vaultDisplayNames")
+    }
+
+    // MARK: Appearance (§3.6 — System / Light / Dark; default Light)
+
+    public enum Appearance: String, CaseIterable {
+        case system, light, dark
+
+        public var colorScheme: ColorScheme? {
+            switch self {
+            case .system: nil
+            case .light: .light
+            case .dark: .dark
+            }
+        }
+    }
+
+    public var appearance: Appearance = .light {
+        didSet { UserDefaults.standard.set(appearance.rawValue, forKey: "appearance") }
     }
 
     // MARK: Security settings (non-sensitive; UserDefaults per §6.1)

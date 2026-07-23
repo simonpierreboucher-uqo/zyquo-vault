@@ -12,6 +12,16 @@ Per-milestone gates an auditor (or CI) can verify:
 - [x] No `try!` / force unwraps / `fatalError` in crypto & storage paths (CI grep)
 - [x] No secret-adjacent logging (CI grep); redacted debug output tested
 - [x] Fixtures contain only obviously fake secrets
-- [ ] Fuzzing harness for header/manifest/import parsers (M8)
-- [ ] Memory review of unlock/lock lifecycle with the M3 `VaultSession`
-- [ ] Independent cryptographic review before v1.0
+- [x] Fuzzing: deterministic (seeded) mutation + random-buffer passes over the
+      header, manifest, record-envelope, attachment, otpauth, base32,
+      recovery-key, CSV, Bitwarden-JSON, and export-container parsers — ~2,600
+      iterations, zero crashes (`FuzzTests`, `ImportFuzzTests`)
+- [x] Backups verified cryptographically before they count; restore never
+      overwrites the active vault (tested)
+- [x] Performance regression ceilings on unlock / bulk write / decrypt-all /
+      deep verify (`PerformanceTests`; numbers in docs/architecture.md)
+- [x] Memory review of unlock/lock lifecycle: VMK zeroed via SecureBytes on
+      every lock path (manual, auto, sleep, screen lock, quit); decrypted temp
+      files destroyed on lock and swept at startup; clipboard cleared on lock;
+      residual Swift copy-risk documented in docs/cryptography.md §Memory
+- [ ] Independent cryptographic review before v1.0 (external)

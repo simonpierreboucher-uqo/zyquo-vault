@@ -28,6 +28,7 @@ public struct RootView: View {
         }
         .animation(reduceMotion ? .easeOut(duration: 0.2) : Zyquo.motion.spring, value: model.screen)
         .frame(minWidth: 640, minHeight: 560)
+        .preferredColorScheme(model.appearance.colorScheme)
         .onAppear { model.bootstrap() }
     }
 }

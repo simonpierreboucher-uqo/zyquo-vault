@@ -8,7 +8,7 @@ source scripts/env.sh
 
 APP_NAME="Zyquo Vault"
 BUNDLE_ID="dev.zyquo.vault"
-VERSION="0.1.0"
+VERSION="0.9.0"
 EXECUTABLE="ZyquoVaultApp"
 DIST="dist"
 APP_DIR="$DIST/$APP_NAME.app"

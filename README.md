@@ -2,16 +2,18 @@
 
 A native, local-first, offline password manager and encrypted secret vault for macOS — built with Swift 6, SwiftUI, and CryptoKit, and buildable **entirely from the terminal** (no Xcode).
 
-> **Status: early development (milestones M0–M1 complete).**
+> **Status: feature-complete pre-release (milestones M0–M8 complete, version 0.9.0).**
 > Zyquo Vault is under active development. Until the storage format and cryptographic implementation have undergone an independent security audit, it should not be used as the sole storage location for irreplaceable production credentials.
 
 ## What exists today
 
-- **Cryptographic core (M1):** Argon2id key derivation (vendored official reference implementation, validated against the official known-answer vectors), HKDF-SHA256 domain-separated key hierarchy, AES-256-GCM authenticated encryption with canonical associated-data binding, constant-time comparison, `SecureBytes` best-effort secure memory, CSPRNG abstraction over `SecRandomCopyBytes`.
-- **Authenticated vault header (M1/M2 subset):** versioned binary format, wrapped Vault Master Key, HMAC header authentication, strict malformed-input rejection, atomic 0600/0700 writes with post-write validation.
-- **Design system (M0):** the "Zyquo Soft Light" token set (colors, continuous radii, spacing, type, elevation, motion) with automated WCAG AA contrast tests, plus the signature `ZyquoCard` component.
-- **App shell (M0):** a token-styled SwiftUI window that honestly reports milestone progress — the real lock screen and item UI arrive with M3/M4.
-- **CLI:** `zyquo-vault-cli vault info|verify <dir>` and `format describe`. The master password is never accepted as a command-line argument.
+- **Cryptographic core:** Argon2id (vendored official reference, official KAT vectors), HKDF-SHA256 domain-separated key hierarchy, AES-256-GCM with canonical AAD binding, constant-time comparison, `SecureBytes`, CSPRNG abstraction. On-device KDF calibration at vault creation.
+- **Crash-safe storage:** authenticated header, encrypted manifest with digest chain, per-record DEK envelopes, transaction journal (manifest replacement = commit point, tested roll-forward/back), process locking, strict malformed-input rejection — all fuzz-tested.
+- **Session & lock:** `VaultSession` actor owns all key material; auto-lock (inactivity, sleep, screen lock, quit), unlock rate limiting, password change, recovery key (`ZQRK-…`) with rotation.
+- **Full item UI:** three-pane browser, detail with one-secret-at-a-time reveal, editor with reorderable custom fields, favorites, tags, folders (encrypted), trash, in-memory search (non-secret fields only), password generator (rejection-sampled), clipboard countdown with conditional clearing, live TOTP (RFC 6238 vectors), safe Markdown notes. Light + dark themes from one token system, WCAG AA verified.
+- **Attachments & backups:** chunked authenticated attachment encryption (position-bound chunks), daily automatic backups verified cryptographically before they count, restore into a separate vault.
+- **Import/export:** generic/browser CSV, Bitwarden JSON, encrypted `.zyquoexport` (own password), plaintext export behind a typed confirmation.
+- **CLI:** `zyquo-vault-cli vault info|verify|backup <dir>` and `format describe`. The master password is never accepted as a command-line argument.
 
 ## Security model in one paragraph
 

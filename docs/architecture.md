@@ -25,6 +25,15 @@ Swift 6 language mode, strict concurrency. Mutable shared state lives in actors 
 
 Typed error enums per layer (`CryptoError`, `StorageError`). Wrong-password and corruption are indistinguishable at the unlock boundary by design; internal diagnostics stay local and sanitized. No `try!`, force unwraps, or `fatalError` in crypto/storage paths (CI-audited).
 
+## Performance profile (M8, MacBook Pro / Apple Silicon, floor KDF params)
+
+Measured by `PerformanceTests` (generous regression ceilings asserted in CI):
+
+- Unlock (Argon2id 64 MiB / t=3 + header + manifest + journal scan): **0.14 s** — production vaults calibrate to ~0.75 s by design (§5.3).
+- Write 200 records (each journalled, two `F_FULLFSYNC` atomic writes): **3.0 s** (~15 ms/record).
+- Decrypt-all summary/search-index build over 200 records: **0.013 s**.
+- Deep integrity verification of 200 records: **0.007 s**.
+
 ## Build system
 
 SwiftPM only; no `.xcodeproj`, no `xcodebuild`. See `docs/build-without-xcode.md` for the SDK pinning and Swift Testing plugin workarounds that make Command Line Tools sufficient.

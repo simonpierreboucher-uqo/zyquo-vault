@@ -58,6 +58,15 @@ struct VaultSettingsSheet: View {
                     ))
                     .toggleStyle(.switch)
                     .font(Zyquo.type.callout)
+                    Picker("Appearance", selection: Binding(
+                        get: { model.appearance },
+                        set: { model.appearance = $0 }
+                    )) {
+                        Text("Light (default)").tag(AppModel.Appearance.light)
+                        Text("Dark").tag(AppModel.Appearance.dark)
+                        Text("System").tag(AppModel.Appearance.system)
+                    }
+                    .font(Zyquo.type.callout)
                     Picker("Clear clipboard after", selection: Binding(
                         get: { model.clipboard.clearAfterSeconds ?? -1 },
                         set: { model.clipboard.clearAfterSeconds = $0 == -1 ? nil : $0 }

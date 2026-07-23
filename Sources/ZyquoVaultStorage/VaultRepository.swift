@@ -39,6 +39,7 @@ public final class VaultRepository {
     private let vmk: SecureBytes
     private let recordKey: SymmetricKey
     private let manifestKey: SymmetricKey
+    private let attachmentKey: SymmetricKey
     public internal(set) var manifest: VaultManifest
     private var lock: VaultLock
     private let now: @Sendable () -> UInt64
@@ -60,6 +61,7 @@ public final class VaultRepository {
         self.vmk = vmk
         self.recordKey = KeyDerivation.subkey(vmk: vmk, vaultID: header.vaultID, context: .recordWrapping)
         self.manifestKey = KeyDerivation.subkey(vmk: vmk, vaultID: header.vaultID, context: .manifestProtection)
+        self.attachmentKey = KeyDerivation.subkey(vmk: vmk, vaultID: header.vaultID, context: .attachmentWrapping)
         self.manifest = manifest
         self.lock = lock
         self.permissionWarnings = permissionWarnings
@@ -166,6 +168,8 @@ public final class VaultRepository {
                 permissionWarnings: warnings, now: now
             )
             repository.recoverPendingTransactions()
+            // Any plaintext left by an abnormal termination is destroyed now.
+            repository.sweepDecryptedTempFiles()
             return repository
         } catch {
             lock.release()
@@ -178,6 +182,7 @@ public final class VaultRepository {
     public func close() {
         guard !closed else { return }
         closed = true
+        sweepDecryptedTempFiles() // no plaintext survives a lock
         lock.release()
         vmk.wipe()
     }
@@ -278,6 +283,145 @@ public final class VaultRepository {
         try? FileManager.default.removeItem(at: recordURL(id))
         TransactionJournal.complete(tx, in: directory)
     }
+
+    // MARK: Attachments (§10.8)
+
+    public static let attachmentsDirectoryName = "attachments"
+    public static let decryptedTempDirectoryName = ".decrypted-tmp"
+
+    func attachmentURL(_ id: UUID) -> URL {
+        directory.appendingPathComponent(Self.attachmentsDirectoryName)
+            .appendingPathComponent("\(id.uuidString).zyqatt")
+    }
+
+    func attachmentPendingURL(_ id: UUID) -> URL {
+        directory.appendingPathComponent(Self.attachmentsDirectoryName)
+            .appendingPathComponent("\(id.uuidString).zyqatt.pending")
+    }
+
+    /// App-controlled directory for temporarily decrypted attachments (0700;
+    /// swept on open/close — see `sweepDecryptedTempFiles`).
+    public func decryptedTempDirectory() throws -> URL {
+        let url = directory.appendingPathComponent(Self.decryptedTempDirectoryName)
+        try FileManager.default.createDirectory(
+            at: url, withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
+        return url
+    }
+
+    public func sweepDecryptedTempFiles() {
+        try? FileManager.default.removeItem(
+            at: directory.appendingPathComponent(Self.decryptedTempDirectoryName)
+        )
+    }
+
+    /// Encrypts `sourceURL` into the vault (streamed) and registers it in the
+    /// manifest — same commit discipline as records.
+    @discardableResult
+    public func storeAttachment(
+        from sourceURL: URL,
+        id: UUID = UUID(),
+        mimeType: String = "application/octet-stream"
+    ) throws -> AttachmentStore.Metadata {
+        let tx = JournalEntry(
+            transactionID: UUID(), operation: .putAttachment, recordID: id,
+            previousGeneration: manifest.generation,
+            newGeneration: manifest.generation + 1,
+            timestamp: now()
+        )
+        try TransactionJournal.begin(tx, in: directory)
+
+        let pending = attachmentPendingURL(id)
+        let metadata: AttachmentStore.Metadata
+        do {
+            metadata = try AttachmentStore.encrypt(
+                sourceURL: sourceURL, to: pending,
+                vaultID: header.vaultID, attachmentID: id,
+                attachmentKey: attachmentKey, mimeType: mimeType
+            )
+        } catch {
+            try? FileManager.default.removeItem(at: pending)
+            TransactionJournal.complete(tx, in: directory)
+            throw error
+        }
+
+        var next = manifest
+        next.generation += 1
+        next.attachments.removeAll { $0.id == id }
+        next.attachments.append(.init(id: id, revision: 1, schemaVersion: AttachmentStore.schemaVersion))
+        next.lastTransactionID = tx.transactionID
+        next.updatedAt = now()
+        try commitManifest(next) // ← COMMIT
+
+        try AtomicFileWriter.atomicReplace(from: pending, to: attachmentURL(id))
+        TransactionJournal.complete(tx, in: directory)
+        return metadata
+    }
+
+    /// Authenticated metadata (filename, MIME type, sizes) without decrypting content.
+    public func attachmentMetadata(id: UUID) throws -> AttachmentStore.Metadata {
+        guard manifest.attachments.contains(where: { $0.id == id }) else {
+            throw StorageError.recordNotFound(id)
+        }
+        return try AttachmentStore.readMetadata(
+            at: attachmentURL(id), vaultID: header.vaultID,
+            attachmentID: id, attachmentKey: attachmentKey
+        )
+    }
+
+    /// Decrypts an attachment into the vault-controlled temp directory (0600)
+    /// and returns the plaintext URL. Caller (session) tracks and deletes it.
+    public func openAttachment(id: UUID) throws -> (url: URL, metadata: AttachmentStore.Metadata) {
+        guard manifest.attachments.contains(where: { $0.id == id }) else {
+            throw StorageError.recordNotFound(id)
+        }
+        guard FileManager.default.fileExists(atPath: attachmentURL(id).path) else {
+            throw StorageError.missingRecord(id)
+        }
+        let metadata = try attachmentMetadata(id: id)
+        let sanitizedName = metadata.originalFilename
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "..", with: "_")
+        let destination = try decryptedTempDirectory()
+            .appendingPathComponent("\(id.uuidString)-\(sanitizedName)")
+        _ = try AttachmentStore.decrypt(
+            fileURL: attachmentURL(id), to: destination,
+            vaultID: header.vaultID, attachmentID: id, attachmentKey: attachmentKey
+        )
+        return (destination, metadata)
+    }
+
+    public func deleteAttachment(id: UUID) throws {
+        guard manifest.attachments.contains(where: { $0.id == id }) else {
+            throw StorageError.recordNotFound(id)
+        }
+        let tx = JournalEntry(
+            transactionID: UUID(), operation: .deleteAttachment, recordID: id,
+            previousGeneration: manifest.generation,
+            newGeneration: manifest.generation + 1,
+            timestamp: now()
+        )
+        try TransactionJournal.begin(tx, in: directory)
+
+        var next = manifest
+        next.generation += 1
+        next.attachments.removeAll { $0.id == id }
+        next.tombstones.append(.init(id: id, deletedAt: now()))
+        next.lastTransactionID = tx.transactionID
+        next.updatedAt = now()
+        try commitManifest(next) // ← COMMIT
+
+        try? FileManager.default.removeItem(at: attachmentURL(id))
+        TransactionJournal.complete(tx, in: directory)
+    }
+
+    public func listAttachments() -> [VaultManifest.RecordEntry] {
+        manifest.attachments
+    }
+
+    /// Module-internal (tests): the attachment-wrapping subkey.
+    var testingAttachmentKey: SymmetricKey { attachmentKey }
 
     // MARK: Folders (stored inside the encrypted manifest)
 
@@ -400,6 +544,25 @@ public final class VaultRepository {
             }
         }
 
+        // Attachments: existence + (deep) full authentication of every chunk.
+        for entry in manifest.attachments {
+            let url = attachmentURL(entry.id)
+            guard fm.fileExists(atPath: url.path) else {
+                report.missingRecords.append(entry.id)
+                continue
+            }
+            if deep {
+                do {
+                    try AttachmentStore.verify(
+                        fileURL: url, vaultID: header.vaultID,
+                        attachmentID: entry.id, attachmentKey: attachmentKey
+                    )
+                } catch {
+                    report.corruptedRecords.append(entry.id)
+                }
+            }
+        }
+
         let recordsDir = directory.appendingPathComponent(Self.recordsDirectoryName)
         let known = Set(manifest.records.map { "\($0.id.uuidString).zyqrec" })
         let journaled = Set(TransactionJournal.pendingEntries(in: directory).map(\.recordID))
@@ -413,7 +576,61 @@ public final class VaultRepository {
                 report.unexpectedFiles.append(name)
             }
         }
+        let attachmentsDir = directory.appendingPathComponent(Self.attachmentsDirectoryName)
+        let knownAttachments = Set(manifest.attachments.map { "\($0.id.uuidString).zyqatt" })
+        for name in (try? fm.contentsOfDirectory(atPath: attachmentsDir.path)) ?? [] {
+            if name.hasSuffix(".zyqatt.pending") {
+                let stem = String(name.dropLast(".zyqatt.pending".count))
+                if UUID(uuidString: stem).map({ !journaled.contains($0) }) ?? true {
+                    report.orphanedPendingFiles.append(name)
+                }
+            } else if name.hasSuffix(".zyqatt"), !knownAttachments.contains(name) {
+                report.unexpectedFiles.append(name)
+            }
+        }
         return report
+    }
+
+    /// Verifies a snapshot (backup) directory with this repository's live keys:
+    /// header HMAC, manifest decryption, and deep authentication of every record
+    /// and attachment the snapshot's manifest lists (used by `BackupService`).
+    func verifySnapshot(at snapshotURL: URL) throws {
+        let headerData = try Data(contentsOf: snapshotURL.appendingPathComponent(VaultStore.headerFileName))
+        let snapshotHeader = try VaultHeader.decode(headerData)
+        guard snapshotHeader.vaultID == header.vaultID else {
+            throw StorageError.invalidHeader(reason: "snapshot vault mismatch")
+        }
+        let expectedTag = VaultStore.headerAuthTag(for: snapshotHeader, vmk: vmk)
+        guard snapshotHeader.headerAuthTag.withUnsafeBytes({ a in
+            expectedTag.withUnsafeBytes { b in constantTimeEquals(a, b) }
+        }) else {
+            throw StorageError.invalidHeader(reason: "snapshot header auth failed")
+        }
+
+        let snapshotManifest = try VaultManifest.decode(
+            try Data(contentsOf: snapshotURL.appendingPathComponent(VaultManifest.fileName)),
+            vaultID: header.vaultID,
+            manifestKey: manifestKey
+        )
+        for entry in snapshotManifest.records {
+            let url = snapshotURL
+                .appendingPathComponent(Self.recordsDirectoryName)
+                .appendingPathComponent("\(entry.id.uuidString).zyqrec")
+            let envelope = try RecordEnvelope.decode(try Data(contentsOf: url), expectedRecordID: entry.id)
+            guard envelope.revision == entry.revision else {
+                throw StorageError.corruptedRecord(entry.id)
+            }
+            _ = try envelope.open(vaultID: header.vaultID, recordWrappingKey: recordKey)
+        }
+        for entry in snapshotManifest.attachments {
+            let url = snapshotURL
+                .appendingPathComponent(Self.attachmentsDirectoryName)
+                .appendingPathComponent("\(entry.id.uuidString).zyqatt")
+            try AttachmentStore.verify(
+                fileURL: url, vaultID: header.vaultID,
+                attachmentID: entry.id, attachmentKey: attachmentKey
+            )
+        }
     }
 
     // MARK: Journal recovery
@@ -438,6 +655,17 @@ public final class VaultRepository {
                 try? FileManager.default.removeItem(at: recordURL(entry.recordID))
             case (.delete, false):
                 break // nothing changed on disk
+            case (.putAttachment, true):
+                let pending = attachmentPendingURL(entry.recordID)
+                if FileManager.default.fileExists(atPath: pending.path) {
+                    try? AtomicFileWriter.atomicReplace(from: pending, to: attachmentURL(entry.recordID))
+                }
+            case (.putAttachment, false):
+                try? FileManager.default.removeItem(at: attachmentPendingURL(entry.recordID))
+            case (.deleteAttachment, true):
+                try? FileManager.default.removeItem(at: attachmentURL(entry.recordID))
+            case (.deleteAttachment, false):
+                break
             }
             TransactionJournal.complete(entry, in: directory)
         }

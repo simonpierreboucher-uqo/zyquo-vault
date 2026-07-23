@@ -26,6 +26,8 @@ public struct JournalEntry: Codable, Equatable, Sendable {
     public enum Operation: String, Codable, Sendable {
         case put
         case delete
+        case putAttachment
+        case deleteAttachment
     }
 
     public var transactionID: UUID

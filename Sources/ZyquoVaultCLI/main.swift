@@ -24,6 +24,7 @@ func usage() -> Never {
     Usage:
       zyquo-vault-cli vault info <vault-directory>
       zyquo-vault-cli vault verify <vault-directory>
+      zyquo-vault-cli vault backup <vault-directory>
       zyquo-vault-cli format describe
 
     The master password is requested on the terminal with echo disabled, or read
@@ -106,6 +107,26 @@ case ("vault", "verify"):
         default:
             fail("the password is incorrect or the vault file is damaged.", code: 3)
         }
+    } catch {
+        fail("the password is incorrect or the vault file is damaged.", code: 3)
+    }
+
+case ("vault", "backup"):
+    guard let path = arguments.dropFirst(2).first else { usage() }
+    let password = readPassword(prompt: "Master password: ")
+    defer { password.wipe() }
+    do {
+        let repository = try VaultRepository.open(at: URL(fileURLWithPath: path), password: password)
+        defer { repository.close() }
+        let ref = try BackupService.create(for: repository)
+        BackupService.prune(in: repository.directory)
+        print("OK — backup created and verified: \(ref.name)")
+        print("     \(ref.info.recordCount) record(s), \(ref.info.attachmentCount) attachment(s), generation \(ref.info.manifestGeneration)")
+    } catch let error as StorageError {
+        if case .fileLocked(let pid) = error {
+            fail("the vault is in use\(pid.map { " by process \($0)" } ?? "").", code: 5)
+        }
+        fail("backup failed — the vault could not be opened or the copy did not verify.", code: 6)
     } catch {
         fail("the password is incorrect or the vault file is damaged.", code: 3)
     }

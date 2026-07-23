@@ -327,6 +327,93 @@ public actor VaultSession {
         try requireRepository().setFolders(folders)
     }
 
+    // MARK: Attachments (§10.8)
+
+    @discardableResult
+    public func storeAttachment(
+        from sourceURL: URL,
+        mimeType: String = "application/octet-stream"
+    ) throws -> (id: UUID, metadata: AttachmentStore.Metadata) {
+        let id = UUID()
+        let metadata = try requireRepository().storeAttachment(from: sourceURL, id: id, mimeType: mimeType)
+        return (id, metadata)
+    }
+
+    public func attachmentMetadata(id: UUID) throws -> AttachmentStore.Metadata {
+        try requireRepository().attachmentMetadata(id: id)
+    }
+
+    /// Decrypts into the vault-controlled temp dir (0600). The plaintext file
+    /// is destroyed on lock/quit and swept at startup; external apps opening it
+    /// may keep their own caches — the UI warns about that.
+    public func openAttachment(id: UUID) throws -> (url: URL, metadata: AttachmentStore.Metadata) {
+        try requireRepository().openAttachment(id: id)
+    }
+
+    public func deleteAttachment(id: UUID) throws {
+        try requireRepository().deleteAttachment(id: id)
+    }
+
+    // MARK: Backups (§7.3)
+
+    @discardableResult
+    public func createBackup() throws -> BackupService.BackupRef {
+        let repo = try requireRepository()
+        let ref = try BackupService.create(for: repo)
+        BackupService.prune(in: repo.directory)
+        return ref
+    }
+
+    public func listBackups() throws -> [BackupService.BackupRef] {
+        BackupService.list(in: try requireRepository().directory)
+    }
+
+    public func verifyBackup(at url: URL) throws {
+        try BackupService.verify(backupAt: url, with: requireRepository())
+    }
+
+    /// Restores into a NEW vault directory under `vaultsRoot`; never touches
+    /// the active vault. Returns the new directory.
+    public func restoreBackup(at url: URL, intoVaultsRoot vaultsRoot: URL) throws -> URL {
+        _ = try requireRepository() // restoring requires an unlocked session
+        return try BackupService.restore(backupAt: url, intoVaultsRoot: vaultsRoot)
+    }
+
+    /// Automatic backup: creates one when the newest is older than a day (or
+    /// none exists). Returns the new ref when a backup was made.
+    @discardableResult
+    public func autoBackupIfNeeded(maxAge: TimeInterval = 86_400) throws -> BackupService.BackupRef? {
+        let repo = try requireRepository()
+        let newest = BackupService.list(in: repo.directory).first
+        let age = newest.map { Date().timeIntervalSince1970 - Double($0.info.createdAt) }
+        guard newest == nil || (age ?? .infinity) > maxAge else { return nil }
+        let ref = try BackupService.create(for: repo)
+        BackupService.prune(in: repo.directory)
+        return ref
+    }
+
+    // MARK: Diagnostics (sanitized — never any secret material)
+
+    public func diagnosticsReport() throws -> String {
+        let repo = try requireRepository()
+        let report = repo.verifyIntegrity(deep: false)
+        let params = repo.header.wrappedVMK.kdfParameters
+        let lines = [
+            "Zyquo Vault sanitized diagnostics",
+            "generated: \(ISO8601DateFormatter().string(from: Date()))",
+            "vault: \(repo.header.vaultID.uuidString)",
+            "format version: \(repo.header.formatVersion)",
+            "kdf: Argon2id m=\(params.memoryKiB)KiB t=\(params.iterations) p=\(params.parallelism)",
+            "recovery key configured: \(repo.header.recoveryWrap != nil)",
+            "manifest generation: \(repo.manifest.generation)",
+            "records: \(repo.manifest.records.count), attachments: \(repo.manifest.attachments.count), tombstones: \(repo.manifest.tombstones.count)",
+            "integrity: missing=\(report.missingRecords.count) corrupted=\(report.corruptedRecords.count) unexpected=\(report.unexpectedFiles.count) orphanedPending=\(report.orphanedPendingFiles.count)",
+            "backups: \(BackupService.list(in: repo.directory).count)",
+            "permission warnings: \(repo.permissionWarnings.joined(separator: "; "))",
+        ]
+        return lines.joined(separator: "\n")
+    }
+
     /// §5.4 password change. The UI re-verifies the current password first.
     public func changePassword(to newPassword: SecureBytes) throws {
         guard newPassword.count > 0 else { throw SessionError.emptyPasswordForbidden }

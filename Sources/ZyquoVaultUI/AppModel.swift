@@ -70,6 +70,10 @@ public final class AppModel {
 
     public func didUnlock() {
         Task { self.startupWarnings = await session.permissionWarnings }
+        // Daily automatic backup (§7.3), off the unlock path.
+        Task.detached(priority: .utility) { [session] in
+            _ = try? await session.autoBackupIfNeeded()
+        }
         screen = .unlocked
     }
 

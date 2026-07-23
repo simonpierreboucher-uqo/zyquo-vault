@@ -113,6 +113,28 @@ Recovery on open, per surviving entry: manifest generation ≥ entry's new gener
 
 Plain JSON: `{pid, processName, acquiredAt}`. A lock with a live owner PID — even this process — rejects opening (`fileLocked`). A lock is reclaimed only when its PID provably no longer exists (`kill(pid,0)` → ESRCH), or when unreadable **and** older than 24 h. A lock file is never deleted merely because it exists.
 
-## Attachments **(M6)**
+## Attachments (`attachments/<uuid>.zyqatt`)
 
-To be specified when implemented: chunked authenticated encryption, per-chunk AAD (attachment UUID + chunk index, object type 3), encrypted original filename and MIME type in the metadata.
+Chunked authenticated encryption; files are processed in chunks (default 1 MiB plaintext), never whole-file in memory. Integers big-endian.
+
+| Offset | Size | Field |
+|---|---|---|
+| 0 | 4 | magic `"ZYQA"` |
+| 4 | 4 | format version (1) |
+| 8 | 16 | attachment UUID (must equal filename stem) |
+| 24 | 4 | schema version (1) |
+| 28 | 12 | DEK-wrap nonce |
+| 40 | 4 | DEK ciphertext length (must be 32) |
+| 44 | 32 | DEK ciphertext — wrapped by the `attachment-wrapping` HKDF subkey |
+| 76 | 16 | DEK-wrap GCM tag |
+| 92 | … | chunk frames: `UInt32 ctLen ‖ nonce(12) ‖ ciphertext ‖ tag(16)` |
+| … | … | metadata frame (same framing; JSON under the DEK) |
+| end−8 | 8 | metadata frame offset |
+
+AAD: canonical structure, object type 3 (`attachmentChunk`), with the **revision slot carrying the section index** — chunk *i* → *i* (0-based), metadata → 2⁶⁴−2, DEK wrap → 2⁶⁴−1. A chunk that is modified, truncated, reordered, or transplanted from another attachment fails authentication; ordering and count are additionally pinned by the encrypted metadata (`chunkCount`, `totalPlaintextSize`, SHA-256 over the whole chunk region). The original filename and MIME type live only inside the encrypted metadata.
+
+Decryption goes to a vault-controlled `.decrypted-tmp/` directory (0700/0600), destroyed on lock/close and swept at open after abnormal termination. No partial plaintext is ever left on failure.
+
+## Backups (`backups/<iso-stamp>-g<generation>/`)
+
+A backup is a snapshot of `vault.header`, `vault.manifest`, `records/*`, and `attachments/*` — every file already independently encrypted and authenticated — plus a plaintext, non-secret `backup.info` (vault UUID, created-at, generation, counts, SHA-256 per file). **A backup is not valid until verified**: creation runs digest checks plus full cryptographic verification (header HMAC, manifest decryption, every record and attachment authenticated) and deletes the copy on any failure. Retention default: last 10, one per day × 7, one per week × 4. Restore always copies into a **new** vault directory; the active vault is never overwritten.

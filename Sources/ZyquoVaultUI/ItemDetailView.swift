@@ -38,6 +38,9 @@ struct ItemDetailView: View {
                 if let notes = item.notes, !notes.isEmpty {
                     notesCard(notes)
                 }
+                if item.trashedAt == nil {
+                    AttachmentsCard(browser: browser, item: item)
+                }
                 metadataCard(item)
                 if item.trashedAt != nil {
                     trashActions(item)

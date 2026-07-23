@@ -15,6 +15,9 @@ struct VaultSettingsSheet: View {
     @State private var showChangePassword = false
     @State private var rotatedKeyDisplay: String?
     @State private var errorMessage: String?
+    @State private var backups: [BackupService.BackupRef] = []
+    @State private var backupStatus: String?
+    @State private var backupWorking = false
 
     var body: some View {
         VStack(spacing: Zyquo.spacing.l) {
@@ -91,6 +94,8 @@ struct VaultSettingsSheet: View {
                 }
             }
 
+            backupsCard
+
             if !model.startupWarnings.isEmpty {
                 ForEach(model.startupWarnings, id: \.self) { warning in
                     ZyquoBanner(.warning, warning)
@@ -102,6 +107,7 @@ struct VaultSettingsSheet: View {
         .background(Zyquo.color.canvas)
         .task {
             hasRecoveryKey = await model.session.hasRecoveryKey
+            backups = (try? await model.session.listBackups()) ?? []
         }
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordSheet(model: model)
@@ -111,6 +117,90 @@ struct VaultSettingsSheet: View {
             set: { if !$0 { rotatedKeyDisplay = nil } }
         )) {
             rotatedKeySheet
+        }
+    }
+
+    private var backupsCard: some View {
+        ZyquoCard(cornerRadius: Zyquo.radius.l, padding: Zyquo.spacing.l) {
+            VStack(alignment: .leading, spacing: Zyquo.spacing.s) {
+                HStack {
+                    Text("Backups")
+                        .font(Zyquo.type.headline)
+                        .foregroundStyle(Zyquo.color.inkPrimary)
+                    Spacer()
+                    if backupWorking {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        ZyquoButton("Back up now", role: .secondary, action: backUpNow)
+                    }
+                }
+                Text("Automatic backup runs daily on unlock. Every backup is verified before it counts, and kept per the retention policy (last 10, daily ×7, weekly ×4).")
+                    .font(Zyquo.type.caption)
+                    .foregroundStyle(Zyquo.color.inkTertiary)
+
+                ForEach(backups.prefix(5)) { backup in
+                    HStack {
+                        Image(systemName: "externaldrive.badge.checkmark")
+                            .foregroundStyle(Zyquo.color.positive)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(Date(timeIntervalSince1970: TimeInterval(backup.info.createdAt))
+                                .formatted(date: .abbreviated, time: .shortened))
+                                .font(Zyquo.type.callout)
+                                .foregroundStyle(Zyquo.color.inkPrimary)
+                            Text("\(backup.info.recordCount) record(s), \(backup.info.attachmentCount) attachment(s) · generation \(backup.info.manifestGeneration)")
+                                .font(Zyquo.type.caption)
+                                .foregroundStyle(Zyquo.color.inkTertiary)
+                        }
+                        Spacer()
+                        ZyquoButton("Restore…", role: .quiet) { restore(backup) }
+                    }
+                }
+                if let backupStatus {
+                    ZyquoBanner(backupStatus.hasPrefix("OK") ? .info : .critical, backupStatus)
+                }
+
+                ZyquoButton("Export sanitized diagnostics", role: .quiet, action: exportDiagnostics)
+            }
+        }
+    }
+
+    private func backUpNow() {
+        backupWorking = true
+        backupStatus = nil
+        Task {
+            defer { backupWorking = false }
+            do {
+                let ref = try await model.session.createBackup()
+                backups = (try? await model.session.listBackups()) ?? []
+                backupStatus = "OK — backup \(ref.name) created and verified."
+            } catch {
+                backupStatus = "The backup failed verification and was discarded."
+            }
+        }
+    }
+
+    private func restore(_ backup: BackupService.BackupRef) {
+        backupStatus = nil
+        Task {
+            do {
+                let directory = try await model.session.restoreBackup(
+                    at: backup.url, intoVaultsRoot: AppModel.vaultsRoot()
+                )
+                backupStatus = "OK — restored into a separate vault (\(directory.lastPathComponent)). Open it from the lock screen; the active vault was not touched."
+            } catch {
+                backupStatus = "The backup could not be restored."
+            }
+        }
+    }
+
+    private func exportDiagnostics() {
+        Task {
+            guard let report = try? await model.session.diagnosticsReport() else { return }
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = "zyquo-diagnostics.txt"
+            if panel.runModal() == .OK, let url = panel.url {
+                try? Data(report.utf8).write(to: url)
+            }
         }
     }
 

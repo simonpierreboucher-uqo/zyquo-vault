@@ -109,6 +109,25 @@ Plain JSON, **no plaintext secrets** — transaction UUID, operation (`put`/`del
 
 Recovery on open, per surviving entry: manifest generation ≥ entry's new generation ⇒ committed ⇒ roll forward (finish the rename/deletion); otherwise ⇒ roll back (remove the pending file). The last known valid state is never auto-discarded.
 
+## Encrypted export (`.zyquoexport`)
+
+Self-contained container protected by its **own** password (may differ from the vault's). Integers big-endian.
+
+| Offset | Size | Field |
+|---|---|---|
+| 0 | 4 | magic `"ZYQX"` |
+| 4 | 4 | format version (1) |
+| 8 | 16 | export UUID |
+| 24 | 1 | Argon2id salt length S (16…64) |
+| 25 | S | salt |
+| 25+S | 4+4+4+1 | Argon2id memory KiB / iterations / parallelism / output length (validated against the same floors/ceilings before derivation) |
+| … | 12 | nonce |
+| … | 8 | ciphertext length N |
+| … | N | ciphertext — JSON `{exportedAt, items, folders}` |
+| … | 16 | GCM tag |
+
+Key: Argon2id(password, salt) → 256-bit KEK. AAD: canonical structure with vault UUID = object UUID = export UUID, object type 5, revision 0. Wrong password and corruption are indistinguishable on open. Plaintext exports (JSON/CSV) exist only behind the UI's typed-confirmation warning flow and are documented as unprotected.
+
 ## Lock file (`lock`)
 
 Plain JSON: `{pid, processName, acquiredAt}`. A lock with a live owner PID — even this process — rejects opening (`fileLocked`). A lock is reclaimed only when its PID provably no longer exists (`kill(pid,0)` → ESRCH), or when unreadable **and** older than 24 h. A lock file is never deleted merely because it exists.

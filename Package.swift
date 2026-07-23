@@ -56,14 +56,14 @@ let package = Package(
         // MARK: UI — UI → Design + Domain + Storage.
         .target(
             name: "ZyquoVaultUI",
-            dependencies: ["ZyquoVaultDesign", "ZyquoVaultDomain", "ZyquoVaultStorage"],
+            dependencies: ["ZyquoVaultDesign", "ZyquoVaultDomain", "ZyquoVaultStorage", "ZyquoVaultImport"],
             swiftSettings: swiftSettings
         ),
 
-        // MARK: Importers.
+        // MARK: Importers & export formats (Import → Crypto + Domain).
         .target(
             name: "ZyquoVaultImport",
-            dependencies: ["ZyquoVaultDomain"],
+            dependencies: ["ZyquoVaultDomain", "ZyquoVaultCrypto"],
             swiftSettings: swiftSettings
         ),
 
@@ -105,6 +105,11 @@ let package = Package(
         .testTarget(
             name: "ZyquoVaultUITests",
             dependencies: ["ZyquoVaultUI"],
+            swiftSettings: swiftSettings
+        ),
+        .testTarget(
+            name: "ZyquoVaultImportTests",
+            dependencies: ["ZyquoVaultImport", "ZyquoVaultDomain", "ZyquoVaultCrypto"],
             swiftSettings: swiftSettings
         ),
     ]

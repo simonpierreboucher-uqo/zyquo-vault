@@ -18,6 +18,7 @@ struct VaultSettingsSheet: View {
     @State private var backups: [BackupService.BackupRef] = []
     @State private var backupStatus: String?
     @State private var backupWorking = false
+    @State private var showImportExport = false
 
     var body: some View {
         VStack(spacing: Zyquo.spacing.l) {
@@ -159,8 +160,14 @@ struct VaultSettingsSheet: View {
                     ZyquoBanner(backupStatus.hasPrefix("OK") ? .info : .critical, backupStatus)
                 }
 
-                ZyquoButton("Export sanitized diagnostics", role: .quiet, action: exportDiagnostics)
+                HStack(spacing: Zyquo.spacing.s) {
+                    ZyquoButton("Import & export…", role: .secondary) { showImportExport = true }
+                    ZyquoButton("Export sanitized diagnostics", role: .quiet, action: exportDiagnostics)
+                }
             }
+        }
+        .sheet(isPresented: $showImportExport) {
+            ImportExportSheet(model: model)
         }
     }
 

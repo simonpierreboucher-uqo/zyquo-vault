@@ -1,0 +1,21 @@
+{
+  "encrypted": false,
+  "folders": [{ "id": "f1", "name": "Fixture folder" }],
+  "items": [
+    {
+      "type": 1,
+      "name": "Example login (fixture, not real)",
+      "favorite": true,
+      "folderId": "f1",
+      "notes": "sanitized fixture — nothing real",
+      "login": {
+        "username": "fixture-user@example.com",
+        "password": "example-password-not-real",
+        "totp": "JBSWY3DPEHPK3PXP",
+        "uris": [{ "uri": "https://example.com" }]
+      },
+      "fields": [{ "name": "PIN", "value": "0000", "type": 1 }]
+    },
+    { "type": 2, "name": "Fixture note", "notes": "test-api-key-000000" }
+  ]
+}

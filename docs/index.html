@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zyquo Vault — User Manual</title>
+<meta name="description" content="The complete user manual for Zyquo Vault, the local-first, offline, encrypted password manager for macOS." />
+<style>
+  :root {
+    --canvas: #F7F6F3;
+    --surface: #FFFFFF;
+    --sunken: #EFEEEA;
+    --ink: #1C1B1A;
+    --ink2: #6E6B66;
+    --ink3: #A5A29C;
+    --accent: #3563F5;
+    --accent-soft: rgba(53, 99, 245, 0.11);
+    --positive: #2E9E6B;
+    --caution: #C98A2B;
+    --critical: #C94F3D;
+    --gold: #B9975B;
+    --hairline: rgba(28, 27, 26, 0.08);
+    --radius-s: 10px;
+    --radius-m: 14px;
+    --radius-l: 20px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --canvas: #161514;
+      --surface: #1E1D1B;
+      --sunken: #141312;
+      --ink: #ECEAE6;
+      --ink2: #A5A29C;
+      --ink3: #6E6B66;
+      --accent: #6B8DF2;
+      --accent-soft: rgba(107, 141, 242, 0.15);
+      --hairline: rgba(236, 234, 230, 0.09);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--canvas);
+    color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, kbd {
+    font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+    font-size: 0.88em;
+    background: var(--sunken);
+    border-radius: 6px;
+    padding: 0.12em 0.42em;
+  }
+  kbd { border: 1px solid var(--hairline); box-shadow: 0 1px 0 var(--hairline); }
+  pre {
+    background: var(--sunken);
+    border-radius: var(--radius-s);
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-size: 0.85em;
+    line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; }
+
+  .layout { display: flex; max-width: 1240px; margin: 0 auto; gap: 40px; padding: 0 24px; }
+  nav.toc {
+    position: sticky; top: 0; align-self: flex-start;
+    width: 250px; flex-shrink: 0;
+    max-height: 100vh; overflow-y: auto;
+    padding: 40px 0 40px;
+    font-size: 13.5px;
+  }
+  nav.toc .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+  nav.toc .brand img { width: 44px; height: 44px; border-radius: 10px; }
+  nav.toc .brand strong { font-size: 16px; letter-spacing: -0.01em; }
+  nav.toc .brand span { display: block; color: var(--ink3); font-size: 11.5px; }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; }
+  nav.toc li { margin: 1px 0; }
+  nav.toc a {
+    display: block; color: var(--ink2);
+    padding: 5px 12px; border-radius: 8px;
+  }
+  nav.toc a:hover { background: var(--accent-soft); color: var(--accent); text-decoration: none; }
+  nav.toc .sect { margin-top: 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink3); padding: 0 12px; }
+  main { flex: 1; min-width: 0; padding: 40px 0 96px; }
+
+  header.hero {
+    background: var(--surface);
+    border-radius: 28px;
+    padding: 44px 48px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.10);
+    margin-bottom: 40px;
+  }
+  header.hero h1 { margin: 0 0 6px; font-size: 34px; letter-spacing: -0.02em; }
+  header.hero p.tagline { margin: 0 0 18px; color: var(--ink2); font-size: 17px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; }
+  .badge {
+    font-size: 12px; font-weight: 600;
+    padding: 4px 12px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .badge.gold { background: rgba(185,151,91,0.14); color: var(--gold); }
+  .badge.green { background: rgba(46,158,107,0.13); color: var(--positive); }
+  .badge.amber { background: rgba(201,138,43,0.14); color: var(--caution); }
+
+  h2 {
+    font-size: 26px; letter-spacing: -0.015em;
+    margin: 64px 0 4px; padding-top: 16px;
+    scroll-margin-top: 24px;
+  }
+  h2 .no { color: var(--ink3); font-weight: 600; margin-right: 10px; }
+  h3 { font-size: 19px; margin: 34px 0 8px; scroll-margin-top: 24px; }
+  p, li { color: var(--ink); }
+  .muted { color: var(--ink2); }
+
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius-l);
+    padding: 26px 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin: 18px 0;
+  }
+  .callout {
+    display: flex; gap: 12px; align-items: flex-start;
+    border-radius: var(--radius-s);
+    padding: 14px 18px; margin: 18px 0;
+    font-size: 14.5px;
+  }
+  .callout .ico { flex-shrink: 0; }
+  .callout.info { background: var(--accent-soft); }
+  .callout.warn { background: rgba(201,138,43,0.12); }
+  .callout.danger { background: rgba(201,79,61,0.10); }
+  .callout.gold { background: rgba(185,151,91,0.12); }
+
+  figure { margin: 26px 0; }
+  figure img {
+    width: 100%; height: auto; display: block;
+    border-radius: var(--radius-m);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+  }
+  figure figcaption {
+    margin-top: 10px; font-size: 13px; color: var(--ink3); text-align: center;
+  }
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .cols2 { grid-template-columns: 1fr; } nav.toc { display: none; } }
+
+  table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 14.5px; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  th { color: var(--ink2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  tr:last-child td { border-bottom: none; }
+
+  ol.steps { counter-reset: step; list-style: none; padding: 0; }
+  ol.steps > li {
+    counter-increment: step;
+    position: relative;
+    padding: 0 0 4px 46px;
+    margin: 14px 0;
+  }
+  ol.steps > li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: 0;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--accent); color: #fff;
+    font-weight: 700; font-size: 14px;
+    border-radius: 999px;
+  }
+  footer {
+    margin-top: 80px; padding-top: 24px;
+    border-top: 1px solid var(--hairline);
+    color: var(--ink3); font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" aria-label="Table of contents">
+  <div class="brand">
+    <img src="assets/icon-256.png" alt="" />
+    <div><strong>Zyquo Vault</strong><span>User Manual · v0.9.0</span></div>
+  </div>
+  <ol>
+    <div class="sect">Getting started</div>
+    <li><a href="#introduction">1 · Introduction</a></li>
+    <li><a href="#installation">2 · Installation</a></li>
+    <li><a href="#creating">3 · Creating your vault</a></li>
+    <li><a href="#recovery-key">4 · The recovery key</a></li>
+    <div class="sect">Everyday use</div>
+    <li><a href="#unlocking">5 · Unlocking &amp; locking</a></li>
+    <li><a href="#main-window">6 · The main window</a></li>
+    <li><a href="#items">7 · Managing items</a></li>
+    <li><a href="#secrets">8 · Revealing &amp; copying secrets</a></li>
+    <li><a href="#generator">9 · Password generator</a></li>
+    <li><a href="#totp">10 · One-time codes (TOTP)</a></li>
+    <li><a href="#notes">11 · Markdown notes</a></li>
+    <li><a href="#attachments">12 · Attachments</a></li>
+    <li><a href="#search">13 · Search</a></li>
+    <li><a href="#trash">14 · Trash &amp; deletion</a></li>
+    <div class="sect">Data safety</div>
+    <li><a href="#backups">15 · Backups &amp; restore</a></li>
+    <li><a href="#import-export">16 · Import &amp; export</a></li>
+    <li><a href="#settings">17 · Settings reference</a></li>
+    <div class="sect">Reference</div>
+    <li><a href="#shortcuts">18 · Keyboard shortcuts</a></li>
+    <li><a href="#cli">19 · Command-line tool</a></li>
+    <li><a href="#data">20 · Where your data lives</a></li>
+    <li><a href="#faq">21 · FAQ &amp; troubleshooting</a></li>
+    <li><a href="#limitations">22 · Honest limitations</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="hero">
+  <h1>Zyquo Vault User Manual</h1>
+  <p class="tagline">Everything you need to know about the local-first, offline, encrypted password manager for macOS.</p>
+  <div class="badges">
+    <span class="badge">macOS 15+</span>
+    <span class="badge green">Notarized by Apple</span>
+    <span class="badge green">100% offline</span>
+    <span class="badge gold">No Keychain, no cloud, no account</span>
+    <span class="badge amber">Pre-release — independent audit pending</span>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<h2 id="introduction"><span class="no">1</span>Introduction</h2>
+<p>Zyquo Vault stores your passwords, one-time-code secrets, cards, identities, SSH keys, notes, and files inside an encrypted vault that never leaves your Mac. There is <strong>no account to create, no cloud to sync with, and no telemetry</strong> — the app has no network permission at all, so it physically cannot send anything anywhere.</p>
+<p>Your <strong>master password is the only key</strong>. It is never stored, never written to disk, and never recoverable by anyone — including the app itself. From it, Zyquo derives encryption keys using Argon2id (a modern, memory-hard algorithm tuned to your machine), and every byte written to disk is encrypted and <em>authenticated</em> with AES-256-GCM: if a file is modified, truncated, swapped, or rolled back, the vault detects it and refuses to proceed rather than showing you tampered data.</p>
+<div class="callout warn"><span class="ico">⚠️</span><div><strong>Pre-release honesty.</strong> Zyquo Vault v0.9.0 is feature-complete and heavily tested, but has not yet been independently audited. Until it has, keep copies of irreplaceable credentials somewhere else as well.</div></div>
+
+<!-- ============================================================ -->
+<h2 id="installation"><span class="no">2</span>Installation</h2>
+<ol class="steps">
+  <li>Download <code>ZyquoVault.dmg</code> from the <a href="https://github.com/simonpierreboucher-uqo/zyquo-vault/releases/latest">latest GitHub release</a>. The disk image is Developer&nbsp;ID signed, notarized by Apple, and stapled — Gatekeeper opens it without warnings.</li>
+  <li>Open the DMG and drag <strong>Zyquo Vault</strong> into <strong>Applications</strong>.</li>
+  <li>(Optional but recommended) Verify the download: <pre><code>shasum -a 256 ~/Downloads/ZyquoVault.dmg</code></pre> and compare with the <code>SHA256SUMS</code> file attached to the same release.</li>
+  <li>Launch the app. The first thing you'll ever see is the welcome screen below — no sign-up, no permissions requests, no network prompts.</li>
+</ol>
+<figure>
+  <img src="manual/img/01-welcome.png" alt="Welcome screen" loading="lazy" />
+  <figcaption>First launch. Three honest statements, one button. (Shown here in dark mode — the app defaults to light.)</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="creating"><span class="no">3</span>Creating your vault</h2>
+<p>Click <strong>Create a vault</strong>. Creation is a short ceremony with one decision per screen, because the two decisions you make here — the master password and the recovery key — are the only things standing between your secrets and everyone else.</p>
+
+<h3>Step 1 — Name and master password</h3>
+<figure>
+  <img src="manual/img/02-create-details.png" alt="Vault creation form" loading="lazy" />
+  <figcaption>The strength meter updates live and always labels its number an <em>estimate</em>.</figcaption>
+</figure>
+<ul>
+  <li><strong>Vault name</strong> is a friendly label shown on the lock screen. It is stored outside the encrypted vault (it has to be visible before you unlock), so don't put anything secret in it.</li>
+  <li><strong>Master password</strong> — length beats complexity. A phrase like <code>correct-horse-battery-staple-9</code> is both stronger and easier to remember than <code>Xk7!q</code>. Zyquo imposes <em>no</em> arbitrary composition rules; the segmented meter and the bits estimate guide you instead. Use the eye toggle to double-check what you typed.</li>
+  <li>Both password fields must match before <strong>Continue</strong> proceeds.</li>
+</ul>
+<div class="callout danger"><span class="ico">🔥</span><div><strong>There is no "forgot password" service.</strong> Zyquo never stores your password and cannot reset it. If you lose it <em>and</em> decline the recovery key on the next screen, the vault's contents are gone permanently. That is not a bug — it is what "only you hold the key" means.</div></div>
+
+<h3>Step 2 — Recovery decision</h3>
+<figure>
+  <img src="manual/img/03-recovery-choice.png" alt="Recovery key opt-in" loading="lazy" />
+  <figcaption>The recovery key is on by default; declining is allowed and respected.</figcaption>
+</figure>
+<p>A recovery key is a second, independent way to open the vault if the password is ever forgotten. It is generated on your Mac, shown once, and never stored by Zyquo in any recoverable form. Anyone holding <em>both</em> the key and your vault files gets full access — treat the printed key like cash in a drawer.</p>
+
+<h3>Step 3 — The recovery-key ceremony</h3>
+<figure>
+  <img src="manual/img/04-recovery-ceremony.png" alt="Recovery key ceremony" loading="lazy" />
+  <figcaption>The key is 14 groups starting with <code>ZQRK</code>. You must re-type the final group to prove you actually saved it.</figcaption>
+</figure>
+<ol class="steps">
+  <li>Write the full key down on paper (or print the window with <kbd>⌘P</kbd> via a screenshot). The characters exclude easily-confused glyphs (no I, L, O, U), and when you later type it back, Zyquo forgives <code>o→0</code> and <code>l→1</code> misreadings, lowercase, and missing dashes.</li>
+  <li>Type the <strong>last 4-character group</strong> into the confirmation field. The button stays refused until it matches — a deliberate speed bump against "yeah yeah, saved it".</li>
+  <li>Click <strong>I saved my recovery key — create the vault</strong>.</li>
+</ol>
+<p>Zyquo then spends a few seconds <em>calibrating</em>: it benchmarks Argon2id on your specific machine and picks parameters so that unlocking costs about three-quarters of a second — heavy enough to make password-guessing brutal, light enough that you never notice. Finally it creates the vault, <strong>verifies it by actually reopening it</strong>, and drops you into the (empty) main window.</p>
+
+<!-- ============================================================ -->
+<h2 id="recovery-key"><span class="no">4</span>The recovery key</h2>
+<table>
+  <tr><th>What it is</th><td>32 random bytes, displayed once as <code>ZQRK-</code> + 13 groups of 4 characters. Mathematically as strong as the vault key itself.</td></tr>
+  <tr><th>What it opens</th><td>Only this vault. It keeps working after you change the master password.</td></tr>
+  <tr><th>Where to keep it</th><td>On paper, in a safe place, physically separate from the Mac. Not in a file on the same disk, not in another password manager entry that this vault protects.</td></tr>
+  <tr><th>Rotation</th><td><em>Settings → Rotate recovery key…</em> issues a fresh key and immediately invalidates the old one (shown once, same ceremony).</td></tr>
+  <tr><th>If you decline</th><td>Nothing changes except honesty: forget the password and the vault is permanently unopenable. You can add a key later from Settings.</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="unlocking"><span class="no">5</span>Unlocking &amp; locking</h2>
+<div class="cols2">
+<figure>
+  <img src="manual/img/12-lock-screen.png" alt="Lock screen" loading="lazy" />
+  <figcaption>The lock screen. While keys are derived the button becomes a progress capsule — the app never freezes.</figcaption>
+</figure>
+<figure>
+  <img src="manual/img/13-recovery-unlock.png" alt="Recovery unlock" loading="lazy" />
+  <figcaption>"I forgot my password…" swaps in the recovery-key form.</figcaption>
+</figure>
+</div>
+<h3>Unlocking</h3>
+<ul>
+  <li>Type the master password and press <kbd>Return</kbd>. A <strong>Caps Lock warning</strong> appears inline if the key is engaged.</li>
+  <li>A wrong password shows one calm, deliberately ambiguous message — <em>"The password is incorrect or the vault file is damaged"</em> — because the cryptography genuinely cannot tell the difference, and neither should an attacker watching the screen.</li>
+  <li>After three consecutive failures, Zyquo enforces a short in-app delay that doubles each further failure (capped at 30&nbsp;s). This slows down someone typing at your keyboard; it is honestly documented as <em>not</em> affecting offline attacks against stolen files — that's the KDF's job.</li>
+  <li>Forgot the password? Click <strong>I forgot my password…</strong> and enter the recovery key.</li>
+</ul>
+<h3>Locking — and what it really does</h3>
+<p>Locking is not cosmetic. When Zyquo locks, the encryption keys are <strong>erased from memory</strong>, decrypted attachment temp files are destroyed, anything the app put on the clipboard is cleared, and the in-memory search index is dropped. The lock screen appears <em>because</em> the keys are gone, not to hide them.</p>
+<p>The vault locks automatically on:</p>
+<table>
+  <tr><th>Trigger</th><th>Default</th><th>Configurable</th></tr>
+  <tr><td>Manual — <kbd>⌘L</kbd> or the padlock button</td><td>—</td><td>—</td></tr>
+  <tr><td>Inactivity</td><td>5 minutes</td><td>1 min / 5 min / 15 min / 1 h</td></tr>
+  <tr><td>Mac goes to sleep</td><td>on</td><td>toggle</td></tr>
+  <tr><td>Screen locks / screensaver</td><td>on</td><td>toggle</td></tr>
+  <tr><td>App quits</td><td>always</td><td>—</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="main-window"><span class="no">6</span>The main window</h2>
+<figure>
+  <img src="manual/img/14-main-populated.png" alt="Main window" loading="lazy" />
+  <figcaption>Three panes: sidebar (scopes), item list, detail. Everything floats as soft cards on the warm canvas.</figcaption>
+</figure>
+<table>
+  <tr><th>Sidebar</th><td><strong>All items</strong>, <strong>Favorites</strong>, your <strong>Folders</strong> (create one inline with <em>+ New folder</em>), <strong>Tags</strong> (collected automatically from items), and the <strong>Trash</strong> with its count. Jump with <kbd>⌘1</kbd>–<kbd>⌘4</kbd>.</td></tr>
+  <tr><th>Item list</th><td>Icon per type, title, subtitle (usually the username), relative modification time, and a gold star for favorites. Right-click any row for Favorite / Duplicate / Move&nbsp;to&nbsp;trash.</td></tr>
+  <tr><th>Detail</th><td>The selected item's header card (title, type, tags, favorite star, actions) followed by its fields, one-time code, notes, attachments, and metadata (created / modified / revision).</td></tr>
+  <tr><th>Toolbar</th><td><strong>＋</strong> New item (menu of all nine types, <kbd>⌘N</kbd>), <strong>padlock</strong> Lock (<kbd>⌘L</kbd>), <strong>gear</strong> Vault settings (<kbd>⌘,</kbd>), and the search field.</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="items"><span class="no">7</span>Managing items</h2>
+<p>Zyquo has nine item types, each with sensible starter fields: <strong>Login</strong> (username, password, website), <strong>Secure note</strong>, <strong>API credential</strong>, <strong>Software license</strong>, <strong>Payment card</strong>, <strong>Identity</strong>, <strong>SSH credential</strong>, <strong>One-time code</strong>, and <strong>Generic secret</strong>.</p>
+<figure>
+  <img src="manual/img/07-editor.png" alt="Item editor" loading="lazy" />
+  <figcaption>The editor: title, dynamic fields, tags, folder, favorite, notes.</figcaption>
+</figure>
+<h3>The editor</h3>
+<ul>
+  <li><strong>Fields are fully dynamic.</strong> Every field has an editable label, a value, and a <em>Conceal</em> checkbox that decides whether it renders as dots and is treated as a secret. Add as many custom fields as you like with <strong>Add field</strong>; drag rows to reorder; swipe or press <kbd>⌫</kbd> to remove.</li>
+  <li>Concealed values get an eye toggle for spot-checking and a <strong>wand button</strong> that opens the password generator (next section).</li>
+  <li><strong>Tags</strong> — type and press <kbd>Return</kbd> to add a pill; click a pill's ✕ to remove it. Tags appear automatically in the sidebar.</li>
+  <li><strong>Folder</strong> and <strong>Favorite</strong> live at the bottom, and notes accept Markdown (see <a href="#notes">§11</a>).</li>
+  <li>An <strong>unsaved-changes guard</strong> protects you: closing an edited item asks before discarding.</li>
+</ul>
+<div class="callout info"><span class="ico">🛡</span><div><strong>Everything descriptive is encrypted.</strong> Titles, usernames, URLs, tags, folder names, notes — all of it lives <em>inside</em> the ciphertext. Someone holding your vault files sees only random UUIDs, sizes, and timestamps. That accepted residue is spelled out in the threat model.</div></div>
+<h3>Item actions</h3>
+<p>From the detail header: <strong>Edit</strong> (<kbd>⌘E</kbd>), <strong>Duplicate</strong> (a full copy named "… copy", never marked favorite), <strong>Move to trash</strong>, and the <strong>star</strong> to toggle favorite. Each save bumps the item's revision counter, which you can see in the metadata card.</p>
+
+<!-- ============================================================ -->
+<h2 id="secrets"><span class="no">8</span>Revealing &amp; copying secrets</h2>
+<figure>
+  <img src="manual/img/09-item-detail.png" alt="Item detail" loading="lazy" />
+  <figcaption>Concealed fields render as dots. Only one secret can be revealed at a time.</figcaption>
+</figure>
+<ul>
+  <li><strong>One reveal at a time.</strong> Opening a second secret's eye automatically re-conceals the first — a small rule that prevents a screen full of exposed passwords during a screen-share.</li>
+  <li><strong>Copying</strong> uses the copy button next to each field (a transient <em>Copied ✓</em> confirms). A small chip counts down — <em>"Clears in 27 s"</em> — and when it reaches zero Zyquo clears the clipboard <em>only if it still holds the value Zyquo put there</em>; anything you copied afterwards is left untouched. Locking clears an owned clipboard immediately, even with clearing set to "Never".</li>
+  <li>Zyquo also marks its clipboard writes with the standard <em>transient</em> and <em>concealed</em> hints, which well-behaved clipboard managers respect — but third-party clipboard history apps that ignore those hints may still capture secrets. If you run one, configure it to honor concealed types.</li>
+  <li><strong>Shortcuts, no mouse needed:</strong> with an item selected — <kbd>⌘⇧C</kbd> copies its password, <kbd>⌘⇧U</kbd> its username, <kbd>⌘⇧T</kbd> its current one-time code.</li>
+  <li><strong>Accessibility:</strong> concealed values are never exposed to VoiceOver or other assistive technologies until you explicitly reveal them.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="generator"><span class="no">9</span>Password generator</h2>
+<figure>
+  <img src="manual/img/08-generator.png" alt="Password generator" loading="lazy" />
+  <figcaption>The generator popover, opened from any concealed field's wand button.</figcaption>
+</figure>
+<table>
+  <tr><th>Random</th><td>8–64 characters from the classes you enable (a–z, A–Z, 0–9, symbols). At least one of every enabled class is guaranteed, at a randomized position. <em>Exclude ambiguous</em> drops look-alikes (Il1O0…) for passwords you might read aloud or retype.</td></tr>
+  <tr><th>Passphrase</th><td>3–10 words from the EFF short wordlist (1,296 words ≈ 10.3 bits each), with dash / dot / space separators, optional capitalization, and an optional digit appended to one random word.</td></tr>
+  <tr><th>PIN</th><td>4–12 digits.</td></tr>
+  <tr><th>Pattern</th><td>A template where <code>a</code>=lowercase, <code>A</code>=uppercase, <code>9</code>=digit, <code>#</code>=symbol, <code>x</code>=any, and every other character is kept literally — e.g. <code>Aaaa-9999-#aaa</code>.</td></tr>
+</table>
+<p>All randomness comes from the system CSPRNG through <em>rejection sampling</em>, which guarantees every candidate is exactly equally likely (no modulo bias — this is tested). The bits number is always labeled an <em>estimate</em>: it measures the generator's search space, not any absolute promise. Click <strong>Regenerate</strong> until you like the result, then <strong>Use</strong> writes it into the field.</p>
+
+<!-- ============================================================ -->
+<h2 id="totp"><span class="no">10</span>One-time codes (TOTP)</h2>
+<figure>
+  <img src="manual/img/15-totp.png" alt="TOTP detail" loading="lazy" />
+  <figcaption>The live code card: grouped digits, countdown ring (turns amber under 5 s), copy button.</figcaption>
+</figure>
+<ol class="steps">
+  <li>Create a <strong>One-time code</strong> item (or add a field of kind <em>totpSeed</em> to any item) and paste the base32 secret the website shows during two-factor setup — the string behind "can't scan the QR code?".</li>
+  <li>The detail view now shows the current 6-digit code, regenerated every 30 seconds, with a countdown ring. Copy it with the button or <kbd>⌘⇧T</kbd>.</li>
+  <li>Zyquo implements RFC 6238 with SHA-1/SHA-256/SHA-512 and 6 or 8 digits, and its output is validated against every official RFC test vector. Codes are computed on demand and never stored or logged; the seed is encrypted like any other secret.</li>
+</ol>
+<div class="callout info"><span class="ico">🕰</span><div>Codes depend on your Mac's clock. If a site rejects fresh codes, check that your system time is set automatically.</div></div>
+
+<!-- ============================================================ -->
+<h2 id="notes"><span class="no">11</span>Markdown notes</h2>
+<figure>
+  <img src="manual/img/16-markdown.png" alt="Markdown note" loading="lazy" />
+  <figcaption>Headings, emphasis, and checklists rendered from a secure note.</figcaption>
+</figure>
+<p>The notes area of every item accepts Markdown: <code># headings</code>, <code>**bold**</code> / <code>*italic*</code>, bullet and numbered lists, <code>- [ ]</code> checklists, <code>&gt;</code> quotes, fenced <code>```</code> code blocks, and <code>---</code> rules. Rendering is pure native text — <strong>no HTML engine, no scripts, no network fetches, no image loading exist in the code at all</strong>, so a hostile note is just… text. Links render styled but are never auto-opened.</p>
+
+<!-- ============================================================ -->
+<h2 id="attachments"><span class="no">12</span>Attachments</h2>
+<ol class="steps">
+  <li>In an item's <strong>Attachments</strong> card, click <strong>Add file…</strong> and pick any file. It is encrypted immediately in streamed 1&nbsp;MiB authenticated chunks — large files never sit whole in memory — and each chunk is cryptographically bound to its exact position, so tampered, truncated, or reordered attachment files are detected and refused.</li>
+  <li><strong>Open</strong> decrypts to a protected temporary file (readable only by you) and hands it to the default app. That temp file is destroyed when the vault locks, when the app quits, and swept at the next launch if the app ever crashed.</li>
+  <li><strong>Remove</strong> deletes the encrypted file and its key reference.</li>
+</ol>
+<div class="callout warn"><span class="ico">⚠️</span><div>Honesty note shown in the app too: once an <em>external</em> app opens an attachment, that app may keep its own caches or recents. Zyquo controls its temp file, not Preview's memory.</div></div>
+
+<!-- ============================================================ -->
+<h2 id="search"><span class="no">13</span>Search</h2>
+<p>Press <kbd>⌘F</kbd> or click the search field. Matching is instant and word-based: <code>github work</code> finds items matching <em>both</em> terms across titles, usernames, URL hostnames, tags, and field labels.</p>
+<p>What search deliberately <em>never</em> indexes: passwords, one-time-code seeds, or any concealed value — provably (there's a test asserting a secret string is absent from the index). The index lives only in memory while the vault is unlocked, is rebuilt on unlock, and is discarded on lock. Nothing about it ever touches the disk, and vault items are not fed to Spotlight.</p>
+
+<!-- ============================================================ -->
+<h2 id="trash"><span class="no">14</span>Trash &amp; deletion</h2>
+<ul>
+  <li><strong>Move to trash</strong> keeps the item fully encrypted and restorable — it just moves scope. The sidebar shows the trash count.</li>
+  <li>In the Trash scope, each item offers <strong>Restore</strong> and <strong>Delete permanently</strong>; the list header offers <strong>Empty trash</strong>.</li>
+  <li><strong>Permanent deletion</strong> removes the ciphertext and the wrapped key that could ever decrypt it. The app is honest about physics: on SSDs (wear-leveling) and in older backups, encrypted traces may persist — which is precisely why <em>encryption plus key destruction</em>, not disk scrubbing, is the real control.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="backups"><span class="no">15</span>Backups &amp; restore</h2>
+<ul>
+  <li><strong>Automatic:</strong> once per day, on unlock, in the background.</li>
+  <li><strong>Manual:</strong> Settings → <strong>Back up now</strong>.</li>
+  <li>Every backup is a snapshot of the encrypted vault (header, manifest, records, attachments) plus integrity digests. A backup <strong>does not count until it verifies</strong>: Zyquo re-checks every digest and re-authenticates every record and attachment in the copy, and deletes it if anything fails.</li>
+  <li><strong>Retention</strong> keeps the last 10 backups, plus one per day for a week, plus one per week for a month; older ones are pruned automatically.</li>
+  <li><strong>Restore…</strong> never touches your active vault. It materializes the backup as a <em>separate</em> vault which then appears on the lock screen; it opens with the master password (and recovery key) that were valid when the backup was taken.</li>
+</ul>
+<div class="callout info"><span class="ico">💡</span><div>Backups live inside the vault directory (see <a href="#data">§20</a>). For disaster protection, periodically copy the whole vault folder — or an encrypted export — to an external disk. Everything in it is encrypted, so the copy is safe at rest.</div></div>
+
+<!-- ============================================================ -->
+<h2 id="import-export"><span class="no">16</span>Import &amp; export</h2>
+<figure>
+  <img src="manual/img/11-import-export.png" alt="Import and export sheet" loading="lazy" />
+  <figcaption>Settings → Import &amp; export. Parsing happens on your Mac only.</figcaption>
+</figure>
+<h3>Importing</h3>
+<ol class="steps">
+  <li>Export from your current manager: <strong>Bitwarden</strong> → <em>unencrypted .json</em>; <strong>Chrome / Edge / Firefox / Safari</strong> → passwords CSV; anything else → a CSV with a header row containing at least a password column (title/username/url/notes/totp/tags columns are recognized under many common names). Encrypted <code>.zyquoexport</code> files from another Zyquo vault work too — you'll be asked for their password.</li>
+  <li>Click <strong>Choose a file…</strong>. Zyquo parses locally, then shows a preview: item counts by type, folders to be created, and <strong>likely duplicates</strong> (same type + title + username as an existing item) with a skip toggle.</li>
+  <li>Click <strong>Import</strong>. When it finishes, <strong>delete the source file</strong> — it holds your secrets in a far weaker form than the vault, and the app reminds you that SSDs and backups may retain traces of it regardless.</li>
+</ol>
+<h3>Exporting</h3>
+<ul>
+  <li><strong>Encrypted export (recommended):</strong> a single <code>.zyquoexport</code> file protected by its <em>own</em> password (Argon2id + AES-256-GCM). Safe to move between machines or keep off-site; importable by any Zyquo Vault.</li>
+  <li><strong>Plaintext export (JSON or CSV):</strong> deliberately inconvenient. You must type <code>EXPORT</code> to arm the buttons, the warnings are unmissable, and the resulting file announces itself as unencrypted. Use it only for one-shot migrations, then delete it.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="settings"><span class="no">17</span>Settings reference</h2>
+<figure>
+  <img src="manual/img/10-settings.png" alt="Vault settings" loading="lazy" />
+  <figcaption>Vault settings (<kbd>⌘,</kbd>): locking, security, backups.</figcaption>
+</figure>
+<table>
+  <tr><th colspan="2">Locking</th></tr>
+  <tr><td>Auto-lock after</td><td>1 min · <strong>5 min (default)</strong> · 15 min · 1 h of inactivity</td></tr>
+  <tr><td>Lock when the Mac sleeps</td><td>on by default</td></tr>
+  <tr><td>Lock when the screen locks</td><td>on by default</td></tr>
+  <tr><td>Appearance</td><td><strong>Light (default)</strong> · Dark · System</td></tr>
+  <tr><td>Clear clipboard after</td><td>10 s · <strong>30 s (default)</strong> · 1 min · 2 min · Never (locking still clears)</td></tr>
+  <tr><th colspan="2">Security</th></tr>
+  <tr><td>Change master password…</td><td>Re-verifies the current password, then re-protects the vault key under the new one. Your data is <em>not</em> re-encrypted (nothing to wait for), and the recovery key keeps working.</td></tr>
+  <tr><td>Rotate recovery key…</td><td>Issues a fresh <code>ZQRK-…</code> key (shown once) and invalidates the previous one.</td></tr>
+  <tr><td>Verify vault integrity</td><td>Re-authenticates every record and attachment on disk and reports any missing, corrupted, or unexpected file.</td></tr>
+  <tr><th colspan="2">Backups</th></tr>
+  <tr><td>Back up now / list / Restore…</td><td>See <a href="#backups">§15</a>.</td></tr>
+  <tr><td>Import &amp; export…</td><td>See <a href="#import-export">§16</a>.</td></tr>
+  <tr><td>Export sanitized diagnostics</td><td>Writes a small text report (versions, KDF parameters, integrity counts — never any secret) you can attach to a bug report.</td></tr>
+</table>
+<figure>
+  <img src="manual/img/17-dark-mode.png" alt="Dark mode" loading="lazy" />
+  <figcaption>Dark mode is derived from the same design tokens and passes the same accessibility contrast checks.</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="shortcuts"><span class="no">18</span>Keyboard shortcuts</h2>
+<table>
+  <tr><th>Shortcut</th><th>Action</th></tr>
+  <tr><td><kbd>⌘N</kbd></td><td>New item (opens the type menu)</td></tr>
+  <tr><td><kbd>⌘F</kbd></td><td>Focus search</td></tr>
+  <tr><td><kbd>⌘L</kbd></td><td>Lock the vault</td></tr>
+  <tr><td><kbd>⌘,</kbd></td><td>Vault settings</td></tr>
+  <tr><td><kbd>⌘E</kbd></td><td>Edit the selected item</td></tr>
+  <tr><td><kbd>⌘S</kbd></td><td>Save (in the editor)</td></tr>
+  <tr><td><kbd>⌘1</kbd> / <kbd>⌘2</kbd> / <kbd>⌘3</kbd> / <kbd>⌘4</kbd></td><td>All items · Favorites · Trash · first folder</td></tr>
+  <tr><td><kbd>⌘⇧C</kbd></td><td>Copy the selected item's password</td></tr>
+  <tr><td><kbd>⌘⇧U</kbd></td><td>Copy the selected item's username</td></tr>
+  <tr><td><kbd>⌘⇧T</kbd></td><td>Copy the selected item's current one-time code</td></tr>
+  <tr><td><kbd>Esc</kbd></td><td>Cancel a sheet (guarded if you have unsaved changes)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="cli"><span class="no">19</span>Command-line tool</h2>
+<p><code>zyquo-vault-cli</code> ships alongside the app (and in <code>dist/</code> when building from source). It exposes <em>safe</em> commands only — nothing that prints a secret — and never accepts the master password as an argument (it would be visible in the process list); it prompts with echo off, or reads stdin when piped.</p>
+<pre><code># Non-secret metadata: UUID, format version, KDF parameters
+zyquo-vault-cli vault info ~/path/to/vault
+
+# Full cryptographic verification of every record and attachment
+zyquo-vault-cli vault verify ~/path/to/vault
+
+# Create + verify a backup, then apply the retention policy
+zyquo-vault-cli vault backup ~/path/to/vault
+
+# Describe the on-disk format
+zyquo-vault-cli format describe</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="data"><span class="no">20</span>Where your data lives</h2>
+<p>The released (sandboxed) app stores vaults at:</p>
+<pre><code>~/Library/Containers/dev.zyquo.vault/Data/Library/Application Support/Zyquo Vault/vaults/&lt;vault-id&gt;/
+├── vault.header      # identity, KDF parameters, wrapped master key
+├── vault.manifest    # encrypted inventory (names &amp; counts are ciphertext)
+├── records/          # one authenticated file per item
+├── attachments/      # chunk-encrypted files
+├── backups/          # verified snapshots
+└── journal/          # crash-safety transaction log (no secrets)</code></pre>
+<p>Every file is encrypted and authenticated; directory permissions are locked to your user (0700/0600) and checked at startup. The complete byte-level format is documented in <a href="https://github.com/simonpierreboucher-uqo/zyquo-vault/blob/main/docs/vault-format.md"><code>vault-format.md</code></a> — deliberately, so independent tools and auditors can read a vault without trusting this app. <span class="muted">(Development builds run unsandboxed and use <code>~/Library/Application Support/Zyquo Vault/</code> directly — the two locations are separate.)</span></p>
+
+<!-- ============================================================ -->
+<h2 id="faq"><span class="no">21</span>FAQ &amp; troubleshooting</h2>
+<h3>"The password is incorrect or the vault file is damaged."</h3>
+<p>Nine times out of ten: Caps Lock, keyboard layout, or a trailing space. The message is intentionally vague (see <a href="#unlocking">§5</a>). If you're certain the password is right, run <code>zyquo-vault-cli vault verify</code> — it distinguishes structural damage — and if damage is confirmed, restore from a backup (<a href="#backups">§15</a>).</p>
+<h3>"Too many attempts. Try again in N s."</h3>
+<p>The in-app rate limiter after repeated wrong passwords. Wait out the delay; it resets on success.</p>
+<h3>"The vault is in use by process N."</h3>
+<p>Another Zyquo process holds the vault's lock — usually a second copy of the app. Quit it. If it crashed, the stale lock is reclaimed automatically once that process is provably gone; a lock file is never deleted just because it exists.</p>
+<h3>The vault locked itself while I was reading something.</h3>
+<p>That's the inactivity auto-lock (default 5 minutes). Raise it in Settings — or accept the nudge; it exists for the laptop left open in a café.</p>
+<h3>Can I sync between two Macs?</h3>
+<p>Not in v1 by design — no sync code means no sync bugs and no server trust. The supported pattern is an encrypted export (<a href="#import-export">§16</a>) carried to the other machine. Putting a live vault in a cloud-synced folder is not supported: concurrent access from two machines can conflict.</p>
+<h3>Does it work with Touch&nbsp;ID?</h3>
+<p>Not for unlocking after a restart — that would require storing key material in the Apple Keychain, which this app categorically refuses to do. (A future option may re-authorize an <em>already-unlocked</em> session biometrically; it will never survive a reboot, and the app will say so.)</p>
+<h3>Where do I report a bug or a vulnerability?</h3>
+<p>Bugs: <a href="https://github.com/simonpierreboucher-uqo/zyquo-vault/issues">GitHub issues</a> (attach a sanitized diagnostics export, never a vault file). Vulnerabilities: privately, per <a href="https://github.com/simonpierreboucher-uqo/zyquo-vault/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+
+<!-- ============================================================ -->
+<h2 id="limitations"><span class="no">22</span>Honest limitations</h2>
+<ul>
+  <li><strong>No independent audit yet.</strong> The format and cryptography documentation exist specifically to make one possible. Until then, keep irreplaceable credentials duplicated elsewhere.</li>
+  <li><strong>An unlocked session trusts your Mac.</strong> Malware running as you, with the vault unlocked, can read what you can read. Zyquo's job is protecting data <em>at rest</em> and failing closed; it cannot defend a compromised live machine.</li>
+  <li><strong>Forgotten password + lost recovery key = permanent loss.</strong> By design; there is no backdoor to abuse.</li>
+  <li><strong>Memory erasure is best-effort.</strong> Keys are zeroed aggressively, but Swift (like every high-level language) can leave transient copies the app can't reach. Documented, not hidden.</li>
+  <li><strong>Deleted ≠ physically erased.</strong> SSD wear-leveling and old backups can retain <em>encrypted</em> traces. Key destruction is the effective control.</li>
+</ul>
+
+<footer>
+  <p>Zyquo Vault v0.9.0 · <a href="https://github.com/simonpierreboucher-uqo/zyquo-vault">Source on GitHub</a> · <a href="https://github.com/simonpierreboucher-uqo/zyquo-vault/releases/latest">Download</a> · <a href="https://github.com/simonpierreboucher-uqo/zyquo-vault/blob/main/SECURITY.md">Security policy</a><br/>
+  © 2026 Simon-Pierre Boucher. Screenshots show a demonstration vault; no real credentials appear anywhere in this manual.</p>
+</footer>
+
+</main>
+</div>
+</body>
+</html>

@@ -12,6 +12,8 @@ No cloud. No account. No telemetry. No Apple Keychain. Your master password is t
 [![Swift](https://img.shields.io/badge/Swift-6.0%20strict%20concurrency-F05138?logo=swift&logoColor=white)](Package.swift)
 [![Notarized](https://img.shields.io/badge/Apple-notarized%20%26%20stapled-2E9E6B?logo=apple)](https://github.com/simonpierreboucher-uqo/zyquo-vault/releases)
 
+**[📖 User Manual](https://simonpierreboucher-uqo.github.io/zyquo-vault/)** · **[⬇️ Download](https://github.com/simonpierreboucher-uqo/zyquo-vault/releases/latest)**
+
 [![Tests](https://img.shields.io/badge/tests-107%20passing-2E9E6B)](#quality-metrics)
 [![Fuzzing](https://img.shields.io/badge/fuzzing-2600%2B%20iterations%2C%200%20crashes-2E9E6B)](#quality-metrics)
 [![Dependencies](https://img.shields.io/badge/external%20dependencies-0-2E9E6B)](#dependencies)
@@ -146,6 +148,8 @@ The UI is built from a single token system — **"Zyquo Soft Light"** ([`docs/de
 - 💽 Deleting data on SSDs is not physically guaranteed — encryption + key destruction is the real control
 
 ## Documentation
+
+**[📖 The complete user manual](https://simonpierreboucher-uqo.github.io/zyquo-vault/)** — installation, vault creation, recovery keys, every feature with screenshots, keyboard shortcuts, CLI, FAQ.
 
 [`architecture`](docs/architecture.md) · [`cryptography`](docs/cryptography.md) · [`vault-format`](docs/vault-format.md) · [`threat-model`](docs/threat-model.md) · [`design-system`](docs/design-system.md) · [`build-without-xcode`](docs/build-without-xcode.md) · [`recovery`](docs/recovery.md) · [`migrations`](docs/migrations.md) · [`audit checklist`](docs/security-audit-checklist.md) · [`ADRs`](docs/decisions/)
 
